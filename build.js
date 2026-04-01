@@ -4,6 +4,9 @@ const path = require('path');
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 
+console.log('SUPABASE_URL:', SUPABASE_URL ? SUPABASE_URL.substring(0, 30) + '...' : 'VACÍA');
+console.log('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'OK (tiene valor)' : 'VACÍA');
+
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error('ERROR: Faltan las variables de entorno SUPABASE_URL y/o SUPABASE_ANON_KEY');
   process.exit(1);
