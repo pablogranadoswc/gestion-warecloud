@@ -9,10 +9,13 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   process.exit(1);
 }
 
+const EXCLUDE = ['dist', 'node_modules', '.git', 'build.js', 'netlify.toml', 'supabase_schema.sql', 'INSTALACION.md', '.gitignore'];
+
 function copyDir(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   const entries = fs.readdirSync(src, { withFileTypes: true });
   for (const entry of entries) {
+    if (EXCLUDE.includes(entry.name)) continue;
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) copyDir(srcPath, destPath);
@@ -29,15 +32,4 @@ config = config.replace('%%SUPABASE_URL%%', SUPABASE_URL);
 config = config.replace('%%SUPABASE_ANON_KEY%%', SUPABASE_ANON_KEY);
 fs.writeFileSync(configPath, config);
 
-['dist/build.js', 'dist/netlify.toml', 'dist/supabase_schema.sql', 'dist/INSTALACION.md'].forEach(f => {
-  if (fs.existsSync(f)) fs.unlinkSync(f);
-});
-
 console.log('Build completado.');
-```
-
----
-
-## Archivo 4 — `.gitignore`
-Creá este archivo nuevo en la raíz:
-```
