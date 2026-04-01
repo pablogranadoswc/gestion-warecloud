@@ -27,9 +27,7 @@ if (fs.existsSync('dist')) fs.rmSync('dist', { recursive: true });
 copyDir('.', 'dist');
 
 const configPath = path.join('dist', 'js', 'config.js');
-let config = fs.readFileSync(configPath, 'utf8');
-config = config.replace('%%SUPABASE_URL%%', SUPABASE_URL);
-config = config.replace('%%SUPABASE_ANON_KEY%%', SUPABASE_ANON_KEY);
+const config = `const SUPABASE_URL = '${SUPABASE_URL}';\nconst SUPABASE_ANON_KEY = '${SUPABASE_ANON_KEY}';\n`;
 fs.writeFileSync(configPath, config);
 
 console.log('Build completado.');
