@@ -41,5 +41,3 @@ console.log('Build completado.');
 ## Archivo 4 — `.gitignore`
 Creá este archivo nuevo en la raíz:
 ```
-dist/
-node_modules/
