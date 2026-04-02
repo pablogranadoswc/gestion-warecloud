@@ -501,3 +501,23 @@ tr.er-total td {
 }
 .chk-option:hover { background: var(--bg); }
 .chk-option input { cursor: pointer; }
+
+/* ── ASIENTOS ── */
+.linea-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.linea-row input, .linea-row select {
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.balance-ok  { color: var(--green); font-weight: 500; }
+.balance-err { color: var(--red);   font-weight: 500; }
