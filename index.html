@@ -86,6 +86,10 @@
           </svg>
           Saldos por cuenta
         </div>
+              <div class="nav-item" data-page="inversiones">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 10L5 7L8 9L11 5L14 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3h3v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Inversiones
+      </div>
       </nav>
       </nav>
       <div class="sidebar-footer">
@@ -190,6 +194,20 @@
             </table>
           </div>
         </div>
+        <!-- INVERSIONES -->
+      <div id="page-inversiones" class="page">
+        <div class="stats-grid" id="inv-stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.25rem"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Nombre</th><th>Tipo</th><th>Entidad</th>
+              <th class="r">Saldo actual</th><th class="r">Intereses est.</th>
+              <th>Estado</th><th></th>
+            </tr></thead>
+            <tbody id="inversiones-body"></tbody>
+          </table>
+        </div>
+      </div>
         <!-- ASIENTOS -->
         <div id="page-asientos" class="page">
           <div class="table-wrap">
@@ -393,6 +411,83 @@
       <div style="padding:1.25rem 1.5rem" id="detalle-content"></div>
     </div>
   </div>
+
+  <!-- MODAL NUEVA INVERSION -->
+<div class="modal-overlay hidden" id="modal-inversion">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <h2 id="mi-title">Nueva inversión</h2>
+      <button class="modal-close" id="mi-close">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Nombre *</label><input type="text" id="mi-nombre" placeholder="Ej: Plazo fijo Galicia abril"></div>
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="mi-tipo">
+          <option value="FCI">FCI</option>
+          <option value="Plazo fijo ARS">Plazo fijo ARS</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="mi-moneda">
+          <option value="ARS">ARS</option>
+          <option value="USD">USD</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Entidad (banco / fondo)</label><input type="text" id="mi-entidad" placeholder="Ej: Galicia, Balanz"></div>
+      <div class="form-group"><label>TNA (%)</label><input type="number" id="mi-tna" placeholder="Ej: 97.5" step="0.01"></div>
+      <div class="form-group"><label>Fecha inicio *</label><input type="date" id="mi-inicio"></div>
+      <div class="form-group"><label>Fecha vencimiento</label><input type="date" id="mi-venc"></div>
+      <div class="form-group"><label>Monto inicial *</label><input type="number" id="mi-monto" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><label>Saldo actual (si diferente)</label><input type="number" id="mi-saldo" placeholder="Dejar vacío = igual al monto inicial" step="0.01"></div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="mi-estado">
+          <option value="Activa">Activa</option>
+          <option value="Vencida">Vencida</option>
+          <option value="Rescatada">Rescatada</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>Observaciones</label><textarea id="mi-obs" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="mi-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="mi-guardar">Guardar inversión</button>
+    </div>
+    <p id="mi-error" class="error-msg"></p>
+  </div>
+</div>
+
+<!-- MODAL MOVIMIENTO INVERSION -->
+<div class="modal-overlay hidden" id="modal-mov-inversion">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2>Registrar movimiento</h2>
+      <button class="modal-close" id="mim-close">✕</button>
+    </div>
+    <input type="hidden" id="mim-inv-id">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="mim-tipo">
+          <option value="Suscripción">Suscripción</option>
+          <option value="Rescate">Rescate</option>
+          <option value="Actualización manual">Actualización manual de saldo</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Fecha *</label><input type="date" id="mim-fecha"></div>
+      <div class="form-group full"><label>Monto *</label><input type="number" id="mim-monto" placeholder="0.00" step="0.01"></div>
+      <div class="form-group full"><label>Observaciones</label><input type="text" id="mim-obs"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="mim-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="mim-guardar">Guardar</button>
+    </div>
+    <p id="mim-error" class="error-msg"></p>
+  </div>
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>

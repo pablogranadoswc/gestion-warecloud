@@ -493,7 +493,7 @@ tr.er-total td {
 .chk-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   padding: 6px 8px;
   font-size: 13px;
   cursor: pointer;
@@ -501,7 +501,7 @@ tr.er-total td {
   color: var(--text);
 }
 .chk-option:hover { background: var(--bg); }
-.chk-option input { cursor: pointer; }
+.chk-option input { cursor: pointer; flex-shrink: 0; }
 
 /* ── ASIENTOS ── */
 .linea-row {

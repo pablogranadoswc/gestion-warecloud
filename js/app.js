@@ -60,7 +60,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 });
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
-const titles = { movimientos: 'Movimientos', er: 'Estado de resultados', flujo: 'Flujo de fondos', empresas: 'Empresas', cuentas: 'Plan de cuentas', asientos: 'Asientos contables', saldos: 'Saldos por cuenta' };
+const titles = { movimientos:'Movimientos', er:'Estado de resultados', flujo:'Flujo de fondos', empresas:'Empresas', cuentas:'Plan de cuentas', asientos:'Asientos contables', saldos:'Saldos por cuenta', inversiones:'Inversiones' };
 
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -71,14 +71,14 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('page-' + page).classList.add('active');
     document.getElementById('page-title').textContent = titles[page];
     const btnNuevo = document.getElementById('btn-nuevo');
-    btnNuevo.textContent = page === 'empresas' ? '+ Nueva empresa' : page === 'cuentas' ? '+ Nueva cuenta' : page === 'asientos' ? '+ Nuevo asiento' : '+ Nuevo movimiento';
-    btnNuevo.dataset.context = page;
+btnNuevo.textContent = page === 'empresas' ? '+ Nueva empresa' : page === 'cuentas' ? '+ Nueva cuenta' : page === 'asientos' ? '+ Nuevo asiento' : page === 'inversiones' ? '+ Nueva inversión' : '+ Nuevo movimiento';    btnNuevo.dataset.context = page;
     if (page === 'er') renderER();
     if (page === 'flujo') renderFlujo();
     if (page === 'empresas') renderEmpresas();
     if (page === 'cuentas') renderCuentas();
     if (page === 'asientos') loadAsientos();
     if (page === 'saldos') renderSaldos();
+    if (page === 'inversiones') loadInversiones();
   });
 });
 
@@ -87,6 +87,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
   if (ctx === 'empresas') openModalEmpresa();
   else if (ctx === 'cuentas') openModalCuenta();
   else if (ctx === 'asientos') openModalAsiento();
+  else if (ctx === 'inversiones') openModalInversion();
   else openModal();
 });
 
@@ -782,4 +783,220 @@ async function renderSaldos() {
       </td>
     </tr>
   `).join('');
+}
+
+// ── INVERSIONES ───────────────────────────────────────────────────────────────
+let inversiones = [], editInvId = null;
+
+async function loadInversiones() {
+  const { data } = await sb.from('inversiones')
+    .select('*, inversion_movimientos(*)')
+    .order('fecha_inicio', { ascending: false });
+  inversiones = data || [];
+  renderInversiones();
+}
+
+function calcularSaldoConIntereses(inv) {
+  if (!inv.tna || inv.estado !== 'Activa') return inv.saldo_actual;
+  const hoy = new Date();
+  const inicio = new Date(inv.fecha_inicio);
+  const dias = Math.max(0, Math.floor((hoy - inicio) / (1000 * 60 * 60 * 24)));
+  const tnaDecimal = inv.tna / 100;
+  const interes = inv.saldo_actual * tnaDecimal * (dias / 365);
+  return inv.saldo_actual + interes;
+}
+
+function calcularInteresesAcumulados(inv) {
+  return calcularSaldoConIntereses(inv) - inv.saldo_actual;
+}
+
+// ── MODAL INVERSION ───────────────────────────────────────────────────────────
+function openModalInversion(id) {
+  editInvId = id || null;
+  document.getElementById('mi-title').textContent = editInvId ? 'Editar inversión' : 'Nueva inversión';
+  document.getElementById('mi-error').textContent = '';
+
+  if (editInvId) {
+    const inv = inversiones.find(x => x.id === editInvId);
+    document.getElementById('mi-nombre').value   = inv.nombre || '';
+    document.getElementById('mi-tipo').value     = inv.tipo || 'FCI';
+    document.getElementById('mi-entidad').value  = inv.entidad || '';
+    document.getElementById('mi-moneda').value   = inv.moneda || 'ARS';
+    document.getElementById('mi-tna').value      = inv.tna || '';
+    document.getElementById('mi-inicio').value   = inv.fecha_inicio || '';
+    document.getElementById('mi-venc').value     = inv.fecha_vencimiento || '';
+    document.getElementById('mi-monto').value    = inv.monto_inicial || '';
+    document.getElementById('mi-saldo').value    = inv.saldo_actual || '';
+    document.getElementById('mi-estado').value   = inv.estado || 'Activa';
+    document.getElementById('mi-obs').value      = inv.observaciones || '';
+  } else {
+    ['nombre','entidad','tna','venc','obs'].forEach(f => { document.getElementById('mi-'+f).value = ''; });
+    document.getElementById('mi-tipo').value   = 'FCI';
+    document.getElementById('mi-moneda').value = 'ARS';
+    document.getElementById('mi-estado').value = 'Activa';
+    document.getElementById('mi-inicio').value = new Date().toISOString().split('T')[0];
+    document.getElementById('mi-monto').value  = '';
+    document.getElementById('mi-saldo').value  = '';
+  }
+  document.getElementById('modal-inversion').classList.remove('hidden');
+}
+
+function closeModalInversion() { document.getElementById('modal-inversion').classList.add('hidden'); }
+document.getElementById('mi-close').addEventListener('click', closeModalInversion);
+document.getElementById('mi-cancelar').addEventListener('click', closeModalInversion);
+
+document.getElementById('mi-guardar').addEventListener('click', async () => {
+  const err = document.getElementById('mi-error');
+  err.textContent = '';
+  const nombre = document.getElementById('mi-nombre').value.trim();
+  const inicio = document.getElementById('mi-inicio').value;
+  const monto  = document.getElementById('mi-monto').value;
+  if (!nombre || !inicio || !monto) { err.textContent = 'Nombre, fecha de inicio y monto son obligatorios.'; return; }
+  const montoNum = parseFloat(monto) || 0;
+  const saldoNum = parseFloat(document.getElementById('mi-saldo').value) || montoNum;
+  const data = {
+    nombre, tipo: document.getElementById('mi-tipo').value,
+    entidad: document.getElementById('mi-entidad').value || null,
+    moneda: document.getElementById('mi-moneda').value,
+    tna: parseFloat(document.getElementById('mi-tna').value) || null,
+    fecha_inicio: inicio,
+    fecha_vencimiento: document.getElementById('mi-venc').value || null,
+    monto_inicial: montoNum,
+    saldo_actual: saldoNum,
+    estado: document.getElementById('mi-estado').value,
+    observaciones: document.getElementById('mi-obs').value || null,
+  };
+  try {
+    if (editInvId) {
+      await sb.from('inversiones').update(data).eq('id', editInvId);
+    } else {
+      const { data: { user } } = await sb.auth.getUser();
+      const { data: inv } = await sb.from('inversiones').insert({ ...data, user_id: user.id }).select().single();
+      await sb.from('inversion_movimientos').insert({
+        inversion_id: inv.id, fecha: inicio, tipo: 'Suscripción',
+        monto: montoNum, saldo_post: montoNum,
+      });
+    }
+    closeModalInversion();
+    await loadInversiones();
+  } catch(e) { err.textContent = 'Error: ' + e.message; }
+});
+
+// ── MODAL MOVIMIENTO INVERSION ────────────────────────────────────────────────
+function openModalMovInversion(invId) {
+  document.getElementById('mim-inv-id').value = invId;
+  document.getElementById('mim-error').textContent = '';
+  document.getElementById('mim-tipo').value = 'Suscripción';
+  document.getElementById('mim-monto').value = '';
+  document.getElementById('mim-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('mim-obs').value = '';
+  document.getElementById('modal-mov-inversion').classList.remove('hidden');
+}
+
+function closeModalMovInversion() { document.getElementById('modal-mov-inversion').classList.add('hidden'); }
+document.getElementById('mim-close').addEventListener('click', closeModalMovInversion);
+document.getElementById('mim-cancelar').addEventListener('click', closeModalMovInversion);
+
+document.getElementById('mim-guardar').addEventListener('click', async () => {
+  const err = document.getElementById('mim-error');
+  err.textContent = '';
+  const invId = document.getElementById('mim-inv-id').value;
+  const tipo  = document.getElementById('mim-tipo').value;
+  const monto = parseFloat(document.getElementById('mim-monto').value) || 0;
+  const fecha = document.getElementById('mim-fecha').value;
+  if (!monto || !fecha) { err.textContent = 'Monto y fecha son obligatorios.'; return; }
+  const inv = inversiones.find(x => x.id === invId);
+  let nuevoSaldo = inv.saldo_actual;
+  if (tipo === 'Suscripción') nuevoSaldo += monto;
+  else if (tipo === 'Rescate') nuevoSaldo -= monto;
+  else if (tipo === 'Actualización manual') nuevoSaldo = monto;
+  if (nuevoSaldo < 0) { err.textContent = 'El rescate supera el saldo disponible.'; return; }
+  try {
+    await sb.from('inversion_movimientos').insert({
+      inversion_id: invId, fecha, tipo, monto,
+      saldo_post: nuevoSaldo,
+      observaciones: document.getElementById('mim-obs').value || null,
+    });
+    await sb.from('inversiones').update({
+      saldo_actual: nuevoSaldo,
+      estado: nuevoSaldo <= 0 ? 'Rescatada' : 'Activa',
+    }).eq('id', invId);
+    closeModalMovInversion();
+    await loadInversiones();
+  } catch(e) { err.textContent = 'Error: ' + e.message; }
+});
+
+// ── VER DETALLE INVERSION ─────────────────────────────────────────────────────
+function verInversion(id) {
+  const inv = inversiones.find(x => x.id === id);
+  if (!inv) return;
+  const saldoConIntereses = calcularSaldoConIntereses(inv);
+  const intereses = calcularInteresesAcumulados(inv);
+  const movs = (inv.inversion_movimientos || []).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
+      <div class="stat-card"><div class="stat-label">Saldo actual</div><div class="stat-value">${inv.moneda === 'USD' ? 'U$S' : '$'} ${fmt(inv.saldo_actual)}</div></div>
+      <div class="stat-card"><div class="stat-label">Intereses acumulados (est.)</div><div class="stat-value pos">+ ${inv.moneda === 'USD' ? 'U$S' : '$'} ${fmt(intereses)}</div></div>
+      <div class="stat-card"><div class="stat-label">Saldo + intereses</div><div class="stat-value pos">${inv.moneda === 'USD' ? 'U$S' : '$'} ${fmt(saldoConIntereses)}</div></div>
+      <div class="stat-card"><div class="stat-label">TNA</div><div class="stat-value">${inv.tna ? inv.tna + '%' : '—'}</div></div>
+    </div>
+    <table style="width:100%;font-size:13px">
+      <thead><tr><th>Fecha</th><th>Tipo</th><th class="r">Monto</th><th class="r">Saldo post</th></tr></thead>
+      <tbody>
+      ${movs.map(m => `<tr>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--text-muted)">${m.fecha}</td>
+        <td><span class="badge ${m.tipo==='Rescate'?'b-eg':'b-ing'}">${m.tipo}</span></td>
+        <td class="r" style="font-family:var(--mono)">${inv.moneda==='USD'?'U$S':'$'} ${fmt(m.monto)}</td>
+        <td class="r" style="font-family:var(--mono)">${inv.moneda==='USD'?'U$S':'$'} ${fmt(m.saldo_post)}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('detalle-content').innerHTML = html;
+  document.getElementById('modal-detalle').classList.remove('hidden');
+}
+
+// ── RENDER INVERSIONES ────────────────────────────────────────────────────────
+function renderInversiones() {
+  const tbody = document.getElementById('inversiones-body');
+  if (!tbody) return;
+
+  const totalActivo = inversiones.filter(i => i.estado === 'Activa').reduce((s,i) => s + calcularSaldoConIntereses(i), 0);
+  document.getElementById('inv-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total invertido activo</div><div class="stat-value pos">$ ${fmt(totalActivo)}</div></div>
+    <div class="stat-card"><div class="stat-label">Inversiones activas</div><div class="stat-value">${inversiones.filter(i=>i.estado==='Activa').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Total inversiones</div><div class="stat-value">${inversiones.length}</div></div>
+  `;
+
+  if (!inversiones.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Sin inversiones. Hacé clic en "+ Nueva inversión".</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = inversiones.map(inv => {
+    const saldoEst = calcularSaldoConIntereses(inv);
+    const intereses = calcularInteresesAcumulados(inv);
+    const moneda = inv.moneda === 'USD' ? 'U$S' : '$';
+    const estadoBadge = inv.estado === 'Activa' ? 'b-ing' : inv.estado === 'Rescatada' ? 'b-eg' : 'b-tar';
+    return `<tr>
+      <td style="font-weight:500">${inv.nombre}</td>
+      <td><span class="badge b-inv">${inv.tipo}</span></td>
+      <td class="muted-text">${inv.entidad||'—'}</td>
+      <td class="r" style="font-family:var(--mono)">${moneda} ${fmt(inv.saldo_actual)}</td>
+      <td class="r pos-text" style="font-family:var(--mono)">${intereses > 0 ? '+ '+moneda+' '+fmt(intereses) : '—'}</td>
+      <td><span class="badge ${estadoBadge}">${inv.estado}</span></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" onclick="verInversion('${inv.id}')">Ver</button>
+        <button class="btn btn-sm" onclick="openModalMovInversion('${inv.id}')">Movimiento</button>
+        <button class="btn btn-sm" onclick="openModalInversion('${inv.id}')">Editar</button>
+        <button class="btn btn-sm btn-del" onclick="eliminarInversion('${inv.id}')">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function eliminarInversion(id) {
+  if (!confirm('¿Eliminar esta inversión?')) return;
+  await sb.from('inversiones').delete().eq('id', id);
+  await loadInversiones();
 }
