@@ -494,7 +494,6 @@ function renderFlujo() {
 checkSession();
 
 // ── DROPDOWNS ─────────────────────────────────────────────────────────────────
-// ── DROPDOWNS ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-filter-tipo').addEventListener('click', e => {
   e.stopPropagation();
   document.getElementById('filter-tipo-panel').style.display =
@@ -513,6 +512,7 @@ document.addEventListener('click', () => {
   document.getElementById('filter-tipo-panel').style.display = 'none';
   document.getElementById('filter-mes-panel').style.display = 'none';
 });
+
 // ── ASIENTOS (PARTIDA DOBLE) ──────────────────────────────────────────────────
 let asientos = [], asientoLineas = [], editAsientoId = null;
 
