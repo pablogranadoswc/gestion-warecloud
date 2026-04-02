@@ -10,184 +10,221 @@
 </head>
 <body>
 
-  <!-- LOGIN -->
-  <div id="login-screen">
-    <div class="login-box">
-      <div class="login-logo">GF</div>
-      <h1>Gestión Financiera</h1>
-      <p class="login-sub">Accedé con tu cuenta</p>
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="tu@email.com">
-      </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <input type="password" id="login-password" placeholder="••••••••">
-      </div>
-      <button class="btn btn-primary full" id="btn-login">Ingresar</button>
-      <button class="btn btn-ghost full" id="btn-register">Crear cuenta</button>
-      <p id="login-error" class="error-msg"></p>
-    </div>
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">GF</div>
+    <h1>Gestión Financiera</h1>
+    <p class="login-sub">Accedé con tu cuenta</p>
+    <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="login-password" placeholder="••••••••"></div>
+    <button class="btn btn-primary full" id="btn-login">Ingresar</button>
+    <button class="btn btn-ghost full" id="btn-register">Crear cuenta</button>
+    <p id="login-error" class="error-msg"></p>
   </div>
+</div>
 
-  <!-- APP -->
-  <div id="app" class="hidden">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo-mark">GF</div>
-        <span class="logo-text">Gestión<br>Financiera</span>
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">GF</div>
+      <span class="logo-text">Gestión<br>Financiera</span>
+    </div>
+    <nav>
+      <div class="nav-item active" data-page="movimientos">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+        Movimientos
       </div>
-      <nav>
-        <div class="nav-item active" data-page="movimientos">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
-          Movimientos
-        </div>
-        <div class="nav-item" data-page="er">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7L9 10L13 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 14H14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-          Estado de resultados
-        </div>
-        <div class="nav-item" data-page="flujo">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5V8L10 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-          Flujo de fondos
-        </div>
-      </nav>
-      <div class="sidebar-footer">
-        <span id="user-email-display"></span>
-        <button class="btn-logout" id="btn-logout">Salir</button>
+      <div class="nav-item" data-page="er">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 7L9 10L13 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 14H14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Estado de resultados
       </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
-        <h1 id="page-title">Movimientos</h1>
-        <button class="btn btn-primary" id="btn-nuevo">+ Nuevo movimiento</button>
+      <div class="nav-item" data-page="flujo">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5V8L10 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Flujo de fondos
       </div>
+      <div class="nav-item" data-page="empresas">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M5 6V4a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="10" r="1" fill="currentColor"/></svg>
+        Empresas
+      </div>
+      <div class="nav-item" data-page="cuentas">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Plan de cuentas
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <span id="user-email-display"></span>
+      <button class="btn-logout" id="btn-logout">Salir</button>
+    </div>
+  </aside>
 
-      <div class="content">
+  <main class="main">
+    <div class="topbar">
+      <h1 id="page-title">Movimientos</h1>
+      <button class="btn btn-primary" id="btn-nuevo" data-context="movimientos">+ Nuevo movimiento</button>
+    </div>
+    <div class="content">
 
-        <!-- MOVIMIENTOS -->
-        <div id="page-movimientos" class="page active">
-          <div class="stats-grid" id="stats-grid"></div>
-          <div class="filters">
-            <input type="text" id="search" placeholder="Buscar por detalle, empresa, CUIT...">
-            <select id="filter-tipo">
-              <option value="">Todos los tipos</option>
-              <option value="Ingreso operativo">Ingresos</option>
-              <option value="Egreso operativo">Egresos</option>
-              <option value="Inversión / Préstamo">Inversiones</option>
-              <option value="Tarjeta de crédito">Tarjetas</option>
-              <option value="Banco / Transferencia">Bancos</option>
-            </select>
-            <select id="filter-mes"><option value="">Todos los meses</option></select>
+      <!-- MOVIMIENTOS -->
+      <div id="page-movimientos" class="page active">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="filters">
+          <input type="text" id="search" placeholder="Buscar por detalle, empresa, CUIT..." style="flex:1;min-width:200px">
+          <div class="filter-dropdown">
+            <button class="btn" id="btn-filter-tipo">Tipo ▾</button>
+            <div class="dropdown-panel" id="filter-tipo-panel">
+              <div id="filter-tipo-options"></div>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Detalle</th>
-                  <th>Empresa</th>
-                  <th>Cuenta</th>
-                  <th>Tipo</th>
-                  <th class="r">Monto</th>
-                  <th class="r">Neto s/IVA</th>
-                  <th class="r">USD</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="tabla-body"></tbody>
-            </table>
+          <div class="filter-dropdown">
+            <button class="btn" id="btn-filter-mes">Mes ▾</button>
+            <div class="dropdown-panel" id="filter-mes-panel">
+              <div id="filter-mes-options"></div>
+            </div>
           </div>
         </div>
-
-        <!-- ESTADO DE RESULTADOS -->
-        <div id="page-er" class="page">
-          <div class="table-wrap"><table id="er-table"></table></div>
-        </div>
-
-        <!-- FLUJO DE FONDOS -->
-        <div id="page-flujo" class="page">
-          <div class="stats-grid" id="flujo-stats"></div>
-          <div class="table-wrap"><table id="flujo-table"></table></div>
-        </div>
-
-      </div>
-    </main>
-  </div>
-
-  <!-- MODAL -->
-  <div class="modal-overlay hidden" id="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="modal-title">Nuevo movimiento</h2>
-        <button class="modal-close" id="modal-close">✕</button>
-      </div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Fecha *</label>
-          <input type="date" id="f-fecha">
-        </div>
-        <div class="form-group">
-          <label>Tipo *</label>
-          <select id="f-tipo">
-            <option value="Ingreso operativo">Ingreso operativo</option>
-            <option value="Egreso operativo">Egreso operativo</option>
-            <option value="Inversión / Préstamo">Inversión / Préstamo</option>
-            <option value="Tarjeta de crédito">Tarjeta de crédito</option>
-            <option value="Banco / Transferencia">Banco / Transferencia</option>
-          </select>
-        </div>
-        <div class="form-group full">
-          <label>Detalle *</label>
-          <input type="text" id="f-detalle" placeholder="Descripción del movimiento">
-        </div>
-        <div class="form-group">
-          <label>Empresa / Razón social</label>
-          <input type="text" id="f-empresa">
-        </div>
-        <div class="form-group">
-          <label>CUIT</label>
-          <input type="text" id="f-cuit" placeholder="XX-XXXXXXXX-X">
-        </div>
-        <div class="form-group">
-          <label>Monto (ARS) *</label>
-          <input type="number" id="f-monto" placeholder="0.00" step="0.01">
-        </div>
-        <div class="form-group">
-          <label>Monto neto (sin IVA)</label>
-          <input type="number" id="f-neto" placeholder="0.00" step="0.01">
-        </div>
-        <div class="form-group">
-          <label>Tipo de cambio</label>
-          <input type="number" id="f-tc" placeholder="Ej: 1250" step="0.01">
-        </div>
-        <div class="form-group">
-          <label>USD</label>
-          <input type="number" id="f-usd" placeholder="0.00" step="0.01">
-        </div>
-        <div class="form-group">
-          <label>Clasificación (manual de cuentas)</label>
-          <input type="text" id="f-cuenta" placeholder="Ej: 01.01 Caja">
-        </div>
-        <div class="form-group">
-          <label>Comprobante / Documento</label>
-          <input type="text" id="f-doc" placeholder="Factura A 0001-00000001">
-        </div>
-        <div class="form-group full">
-          <label>Observaciones</label>
-          <textarea id="f-obs" rows="2" placeholder="Notas adicionales..."></textarea>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Fecha</th><th>Detalle</th><th>Empresa</th><th>Cuenta</th><th>Tipo</th>
+              <th class="r">Monto</th><th class="r">Neto s/IVA</th><th class="r">USD</th><th></th>
+            </tr></thead>
+            <tbody id="tabla-body"></tbody>
+          </table>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" id="btn-cancelar">Cancelar</button>
-        <button class="btn btn-primary" id="btn-guardar">Guardar movimiento</button>
+
+      <!-- ESTADO DE RESULTADOS -->
+      <div id="page-er" class="page">
+        <div class="table-wrap"><table id="er-table"></table></div>
       </div>
-      <p id="form-error" class="error-msg"></p>
+
+      <!-- FLUJO DE FONDOS -->
+      <div id="page-flujo" class="page">
+        <div class="stats-grid" id="flujo-stats"></div>
+        <div class="table-wrap"><table id="flujo-table"></table></div>
+      </div>
+
+      <!-- EMPRESAS -->
+      <div id="page-empresas" class="page">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>CUIT</th><th>Condición IVA</th><th>Email</th><th>Teléfono</th><th></th></tr></thead>
+            <tbody id="empresas-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PLAN DE CUENTAS -->
+      <div id="page-cuentas" class="page">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th></th></tr></thead>
+            <tbody id="cuentas-body"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
-  </div>
+  </main>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js"></script>
-  <script src="js/app.js"></script>
+<!-- MODAL MOVIMIENTO -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nuevo movimiento</h2>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Fecha *</label><input type="date" id="f-fecha"></div>
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="f-tipo">
+          <option value="Ingreso">Ingreso</option>
+          <option value="Egreso">Egreso</option>
+          <option value="Inversión">Inversión</option>
+          <option value="Préstamo">Préstamo</option>
+          <option value="Tarjeta de crédito">Tarjeta de crédito</option>
+          <option value="Banco / Transferencia">Banco / Transferencia</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>Detalle *</label><input type="text" id="f-detalle" placeholder="Descripción del movimiento"></div>
+      <div class="form-group full">
+        <label>Empresa / Razón social</label>
+        <select id="f-empresa-select"></select>
+      </div>
+      <div class="form-group"><label>Monto (ARS) *</label><input type="number" id="f-monto" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><label>Monto neto (sin IVA)</label><input type="number" id="f-neto" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><label>Tipo de cambio</label><input type="number" id="f-tc" placeholder="Ej: 1250" step="0.01"></div>
+      <div class="form-group"><label>USD</label><input type="number" id="f-usd" placeholder="0.00" step="0.01"></div>
+      <div class="form-group"><label>Clasificación (manual de cuentas)</label><input type="text" id="f-cuenta" placeholder="Ej: 01.01 Caja"></div>
+      <div class="form-group"><label>Comprobante / Documento</label><input type="text" id="f-doc" placeholder="Factura A 0001-00000001"></div>
+      <div class="form-group full"><label>Observaciones</label><textarea id="f-obs" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar">Guardar movimiento</button>
+    </div>
+    <p id="form-error" class="error-msg"></p>
+  </div>
+</div>
+
+<!-- MODAL EMPRESA -->
+<div class="modal-overlay hidden" id="modal-empresa">
+  <div class="modal">
+    <div class="modal-header"><h2 id="me-title">Nueva empresa</h2><button class="modal-close" id="me-close">✕</button></div>
+    <input type="hidden" id="me-id">
+    <div class="form-grid">
+      <div class="form-group full"><label>Nombre / Razón social *</label><input type="text" id="me-nombre"></div>
+      <div class="form-group"><label>CUIT</label><input type="text" id="me-cuit" placeholder="XX-XXXXXXXX-X"></div>
+      <div class="form-group">
+        <label>Condición IVA</label>
+        <select id="me-iva">
+          <option value="">—</option>
+          <option>Responsable Inscripto</option>
+          <option>Monotributista</option>
+          <option>Exento</option>
+          <option>Consumidor Final</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="me-email"></div>
+      <div class="form-group"><label>Teléfono</label><input type="text" id="me-tel"></div>
+      <div class="form-group full"><label>Dirección</label><input type="text" id="me-dir"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="me-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="me-guardar">Guardar empresa</button>
+    </div>
+    <p id="me-error" class="error-msg"></p>
+  </div>
+</div>
+
+<!-- MODAL CUENTA -->
+<div class="modal-overlay hidden" id="modal-cuenta">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h2 id="mc-title">Nueva cuenta</h2><button class="modal-close" id="mc-close">✕</button></div>
+    <input type="hidden" id="mc-id">
+    <div class="form-grid">
+      <div class="form-group"><label>Código *</label><input type="text" id="mc-codigo" placeholder="Ej: 01.01"></div>
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="mc-tipo">
+          <option>Activo</option><option>Pasivo</option><option>Patrimonio</option>
+          <option>Ingreso</option><option>Egreso</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>Nombre *</label><input type="text" id="mc-nombre" placeholder="Ej: Caja ARS"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="mc-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="mc-guardar">Guardar cuenta</button>
+    </div>
+    <p id="mc-error" class="error-msg"></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
