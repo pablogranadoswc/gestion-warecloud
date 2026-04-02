@@ -469,3 +469,35 @@ tr.er-total td {
 .pos-text { color: var(--green); }
 .neg-text { color: var(--red); }
 .muted-text { color: var(--text-muted); }
+
+/* ── FILTER DROPDOWNS ── */
+.filter-dropdown { position: relative; }
+
+.dropdown-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  min-width: 180px;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.filter-dropdown.open .dropdown-panel { display: block; }
+
+.chk-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  color: var(--text);
+}
+.chk-option:hover { background: var(--bg); }
+.chk-option input { cursor: pointer; }
