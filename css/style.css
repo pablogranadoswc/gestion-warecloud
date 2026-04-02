@@ -471,9 +471,11 @@ tr.er-total td {
 .muted-text { color: var(--text-muted); }
 
 /* ── FILTER DROPDOWNS ── */
+
+/* ── FILTER DROPDOWNS ── */
 .filter-dropdown { position: relative; }
 
-.dropdown-panel {
+#filter-tipo-panel, #filter-mes-panel {
   display: none;
   position: absolute;
   top: calc(100% + 4px);
@@ -482,12 +484,10 @@ tr.er-total td {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 8px;
-  min-width: 180px;
+  min-width: 200px;
   z-index: 50;
   box-shadow: 0 4px 16px rgba(0,0,0,0.1);
 }
-
-.filter-dropdown.open .dropdown-panel { display: block; }
 
 .chk-option {
   display: flex;

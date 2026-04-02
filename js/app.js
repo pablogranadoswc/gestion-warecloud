@@ -494,22 +494,25 @@ function renderFlujo() {
 checkSession();
 
 // ── DROPDOWNS ─────────────────────────────────────────────────────────────────
+// ── DROPDOWNS ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-filter-tipo').addEventListener('click', e => {
   e.stopPropagation();
-  document.querySelector('.filter-dropdown:nth-child(2)').classList.toggle('open');
-  document.querySelector('.filter-dropdown:nth-child(3)').classList.remove('open');
+  document.getElementById('filter-tipo-panel').style.display =
+    document.getElementById('filter-tipo-panel').style.display === 'block' ? 'none' : 'block';
+  document.getElementById('filter-mes-panel').style.display = 'none';
 });
 
 document.getElementById('btn-filter-mes').addEventListener('click', e => {
   e.stopPropagation();
-  document.querySelector('.filter-dropdown:nth-child(3)').classList.toggle('open');
-  document.querySelector('.filter-dropdown:nth-child(2)').classList.remove('open');
+  document.getElementById('filter-mes-panel').style.display =
+    document.getElementById('filter-mes-panel').style.display === 'block' ? 'none' : 'block';
+  document.getElementById('filter-tipo-panel').style.display = 'none';
 });
 
 document.addEventListener('click', () => {
-  document.querySelectorAll('.filter-dropdown').forEach(d => d.classList.remove('open'));
+  document.getElementById('filter-tipo-panel').style.display = 'none';
+  document.getElementById('filter-mes-panel').style.display = 'none';
 });
-
 // ── ASIENTOS (PARTIDA DOBLE) ──────────────────────────────────────────────────
 let asientos = [], asientoLineas = [], editAsientoId = null;
 
