@@ -169,6 +169,8 @@ function clearForm() {
   });
   document.getElementById('f-tipo').value = 'Ingreso';
   const sel = document.getElementById('f-empresa-select'); if (sel) sel.value = '';
+  const selConcepto = document.getElementById('f-concepto');
+  if (selConcepto) selConcepto.value = '';
 }
 
 function fillForm(m) {
@@ -184,6 +186,8 @@ function fillForm(m) {
   document.getElementById('f-obs').value = m.observaciones || '';
   const sel = document.getElementById('f-empresa-select');
   if (sel) sel.value = m.empresa_id || '';
+  const selConcepto = document.getElementById('f-concepto');
+  if (selConcepto) selConcepto.value = m.concepto || '';
 }
 
 document.getElementById('modal-close').addEventListener('click', closeModal);
@@ -229,8 +233,9 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       movId = newMov.id;
 
       // Generar asiento automático si tiene empresa
-      if (empresaId && (tipo === 'Ingreso' || tipo === 'Egreso')) {
-        await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId: user.id });
+const concepto = document.getElementById('f-concepto').value;
+      if (empresaId && concepto) {
+        await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId, concepto });
       }
     }
 
@@ -1127,49 +1132,60 @@ function getSaldoEmpresa(empresaId) {
   return movs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
 }
 
-async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId }) {
-  const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
-  const ctaAPagar  = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId, concepto }) {
+  if (!concepto || !empresaObj) return;
+
+  const ctaACobrar  = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
+  const ctaAPagar   = cuentas.find(c => c.nombre === 'Cuentas a pagar');
   const ctaIngresos = cuentas.find(c => c.nombre === 'Ventas' || c.tipo === 'Ingreso');
   const ctaEgresos  = cuentas.find(c => c.nombre === 'Compras' || c.tipo === 'Egreso');
+  const ctaEfectivo = cuentas.find(c => c.nombre === 'Efectivo ARS');
 
-  let lineas = [];
-  if (tipo === 'Ingreso') {
-    lineas = [
-      { cuenta_id: ctaACobrar?.id || null, cuenta_nombre: 'Cuentas a cobrar', debe: montoNum, haber: 0 },
-      { cuenta_id: ctaIngresos?.id || null, cuenta_nombre: ctaIngresos?.nombre || 'Ingresos', debe: 0, haber: montoNum },
-    ];
-  } else {
-    lineas = [
-      { cuenta_id: ctaEgresos?.id || null,  cuenta_nombre: ctaEgresos?.nombre || 'Egresos', debe: montoNum, haber: 0 },
-      { cuenta_id: ctaAPagar?.id || null,   cuenta_nombre: 'Cuentas a pagar', debe: 0, haber: montoNum },
-    ];
-  }
+  const conceptoMap = {
+    factura_emitida:      { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre||'Ingresos',  ccDebe: montoNum, ccHaber: 0, label: 'Factura emitida' },
+    cobro_efectivo:       { debe: ctaEfectivo?.nombre||'Efectivo ARS', haber: 'Cuentas a cobrar', ccDebe: 0, ccHaber: montoNum, label: 'Cobro' },
+    nota_debito_emitida:  { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre||'Ingresos',  ccDebe: montoNum, ccHaber: 0, label: 'Nota de débito emitida' },
+    nota_credito_emitida: { debe: ctaIngresos?.nombre||'Ingresos', haber: 'Cuentas a cobrar',  ccDebe: 0, ccHaber: montoNum, label: 'Nota de crédito emitida' },
+    factura_recibida:     { debe: ctaEgresos?.nombre||'Egresos', haber: 'Cuentas a pagar',     ccDebe: 0, ccHaber: montoNum, label: 'Factura recibida' },
+    pago_realizado:       { debe: 'Cuentas a pagar', haber: ctaEfectivo?.nombre||'Efectivo ARS', ccDebe: montoNum, ccHaber: 0, label: 'Pago realizado' },
+    nota_debito_recibida: { debe: ctaEgresos?.nombre||'Egresos', haber: 'Cuentas a pagar',     ccDebe: 0, ccHaber: montoNum, label: 'Nota de débito recibida' },
+    nota_credito_recibida:{ debe: 'Cuentas a pagar', haber: ctaEgresos?.nombre||'Egresos',     ccDebe: montoNum, ccHaber: 0, label: 'Nota de crédito recibida' },
+  };
+
+  const cfg = conceptoMap[concepto];
+  if (!cfg) return;
+
+  const cuentaIdPorNombre = (nombre) => cuentas.find(c => c.nombre === nombre)?.id || null;
+
+  const lineas = [
+    { cuenta_id: cuentaIdPorNombre(cfg.debe),  cuenta_nombre: cfg.debe,  debe: montoNum, haber: 0 },
+    { cuenta_id: cuentaIdPorNombre(cfg.haber), cuenta_nombre: cfg.haber, debe: 0, haber: montoNum },
+  ];
 
   const { data: asiento } = await sb.from('asientos').insert({
     user_id: userId, fecha,
-    descripcion: `${tipo} — ${detalle}${empresaObj ? ' ('+empresaObj.nombre+')' : ''}`,
-    empresa_id: empresaObj?.id || null,
+    descripcion: `${cfg.label} — ${detalle} (${empresaObj.nombre})`,
+    empresa_id: empresaObj.id,
   }).select().single();
 
   await sb.from('asiento_lineas').insert(lineas.map(l => ({ ...l, asiento_id: asiento.id })));
   await sb.from('movimientos').update({ asiento_id: asiento.id }).eq('id', movId);
 
-  // Registrar en cuenta corriente
-  if (empresaObj) {
-    const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
-    const saldoAnterior = ccMovs.reduce((s,c) => s + (c.debe||0) - (c.haber||0), 0);
-    const debe  = tipo === 'Ingreso' ? montoNum : 0;
-    const haber = tipo === 'Egreso'  ? montoNum : 0;
-    await sb.from('cuentas_corrientes').insert({
-      user_id: userId,
-      empresa_id: empresaObj.id,
-      movimiento_id: movId,
-      fecha, descripcion: detalle,
-      debe, haber,
-      saldo: saldoAnterior + debe - haber,
-    });
-  }
+  // Cuenta corriente
+  const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
+  const saldoAnterior = ccMovs.reduce((s,c) => s + (c.debe||0) - (c.haber||0), 0);
+  await sb.from('cuentas_corrientes').insert({
+    user_id: userId,
+    empresa_id: empresaObj.id,
+    movimiento_id: movId,
+    fecha,
+    descripcion: `${cfg.label} — ${detalle}`,
+    debe:  cfg.ccDebe,
+    haber: cfg.ccHaber,
+    saldo: saldoAnterior + cfg.ccDebe - cfg.ccHaber,
+  });
+
+  await loadCuentasCorrientes();
 }
 
 // ── COBRAR / PAGAR EMPRESA ────────────────────────────────────────────────────
