@@ -161,21 +161,25 @@
         </div>
 
         <!-- FLUJO DE FONDOS -->
-      <div id="page-flujo" class="page">
-        <div class="filters" style="margin-bottom:1rem">
-          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
-            <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">Desde</label>
-            <input type="date" id="flujo-desde" style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+        <div id="page-flujo" class="page">
+          <div class="filters" style="margin-bottom:1rem">
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
+              <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">Desde</label>
+              <input type="date" id="flujo-desde"
+                style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+            </div>
+            <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
+              <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">Hasta</label>
+              <input type="date" id="flujo-hasta"
+                style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+            </div>
+            <button class="btn" onclick="renderFlujo()">Aplicar</button>
           </div>
-          <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
-            <label style="font-size:13px;color:var(--text-muted);white-space:nowrap">Hasta</label>
-            <input type="date" id="flujo-hasta" style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+          <div class="stats-grid" id="flujo-stats"></div>
+          <div class="table-wrap">
+            <table id="flujo-table"></table>
           </div>
-          <button class="btn" onclick="renderFlujo()">Aplicar</button>
         </div>
-        <div class="stats-grid" id="flujo-stats"></div>
-        <div class="table-wrap"><table id="flujo-table"></table></div>
-      </div>
 
         <!-- EMPRESAS -->
         <div id="page-empresas" class="page">
@@ -306,8 +310,12 @@
         <div class="form-group"><label>Tipo de cambio</label><input type="number" id="f-tc" placeholder="Ej: 1250"
             step="0.01"></div>
         <div class="form-group"><label>USD</label><input type="number" id="f-usd" placeholder="0.00" step="0.01"></div>
-        <div class="form-group"><label>Clasificación (manual de cuentas)</label><input type="text" id="f-cuenta"
-            placeholder="Ej: 01.01 Caja"></div>
+        <div class="form-group">
+          <label>Clasificación (manual de cuentas)</label>
+          <select id="f-cuenta">
+            <option value="">Sin clasificar</option>
+          </select>
+        </div>
         <div class="form-group"><label>Comprobante / Documento</label><input type="text" id="f-doc"
             placeholder="Factura A 0001-00000001"></div>
         <div class="form-group full"><label>Observaciones</label><textarea id="f-obs" rows="2"></textarea></div>
@@ -522,49 +530,49 @@
   </div>
 
   <!-- MODAL COBRAR / PAGAR -->
-<div class="modal-overlay hidden" id="modal-cobrar-pagar">
-  <div class="modal" style="max-width:440px">
-    <div class="modal-header">
-      <h2 id="cp-title">Cobrar / Pagar</h2>
-      <button class="modal-close" id="cp-close">✕</button>
+  <div class="modal-overlay hidden" id="modal-cobrar-pagar">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h2 id="cp-title">Cobrar / Pagar</h2>
+        <button class="modal-close" id="cp-close">✕</button>
+      </div>
+      <input type="hidden" id="cp-empresa-id">
+      <div style="padding:0 1.5rem 1rem">
+        <p style="font-size:15px;font-weight:500;margin-bottom:4px" id="cp-empresa-nombre"></p>
+        <p style="font-size:13px;margin-bottom:1rem" id="cp-saldo-actual"></p>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="cp-tipo">
+            <option value="Cobro">Cobro</option>
+            <option value="Pago">Pago</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="cp-fecha">
+        </div>
+        <div class="form-group full">
+          <label>Cuenta destino *</label>
+          <select id="cp-cuenta"></select>
+        </div>
+        <div class="form-group full">
+          <label>Monto *</label>
+          <input type="number" id="cp-monto" step="0.01">
+        </div>
+        <div class="form-group full">
+          <label>Observaciones</label>
+          <input type="text" id="cp-obs">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cp-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="cp-guardar">Confirmar</button>
+      </div>
+      <p id="cp-error" class="error-msg"></p>
     </div>
-    <input type="hidden" id="cp-empresa-id">
-    <div style="padding:0 1.5rem 1rem">
-      <p style="font-size:15px;font-weight:500;margin-bottom:4px" id="cp-empresa-nombre"></p>
-      <p style="font-size:13px;margin-bottom:1rem" id="cp-saldo-actual"></p>
-    </div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Tipo</label>
-        <select id="cp-tipo">
-          <option value="Cobro">Cobro</option>
-          <option value="Pago">Pago</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Fecha *</label>
-        <input type="date" id="cp-fecha">
-      </div>
-      <div class="form-group full">
-        <label>Cuenta destino *</label>
-        <select id="cp-cuenta"></select>
-      </div>
-      <div class="form-group full">
-        <label>Monto *</label>
-        <input type="number" id="cp-monto" step="0.01">
-      </div>
-      <div class="form-group full">
-        <label>Observaciones</label>
-        <input type="text" id="cp-obs">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" id="cp-cancelar">Cancelar</button>
-      <button class="btn btn-primary" id="cp-guardar">Confirmar</button>
-    </div>
-    <p id="cp-error" class="error-msg"></p>
   </div>
-</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>

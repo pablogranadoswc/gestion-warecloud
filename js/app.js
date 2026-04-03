@@ -134,7 +134,7 @@ function openModal(id) {
   document.getElementById('modal-title').textContent = editId ? 'Editar movimiento' : 'Nuevo movimiento';
   document.getElementById('form-error').textContent = '';
   clearForm();
-  populateEmpresaSelect();
+  populateCuentaSelect();
   if (editId) { const m = movimientos.find(x => x.id === editId); if (m) fillForm(m); }
   else document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('modal-overlay').classList.remove('hidden');
@@ -148,6 +148,16 @@ function populateEmpresaSelect() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">Sin empresa</option>';
   empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — ' + e.cuit : ''}</option>`; });
+  sel.value = cur;
+}
+function populateCuentaSelect() {
+  const sel = document.getElementById('f-cuenta');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Sin clasificar</option>';
+  cuentas.forEach(c => {
+    sel.innerHTML += `<option value="${c.codigo} ${c.nombre}">${c.codigo} — ${c.nombre}</option>`;
+  });
   sel.value = cur;
 }
 
