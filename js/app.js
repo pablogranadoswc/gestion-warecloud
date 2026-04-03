@@ -60,7 +60,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 });
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
-const titles = { movimientos:'Movimientos', er:'Estado de resultados', flujo:'Flujo de fondos', empresas:'Empresas', cuentas:'Plan de cuentas', asientos:'Asientos contables', saldos:'Saldos por cuenta', inversiones:'Inversiones' };
+const titles = { movimientos: 'Movimientos', er: 'Estado de resultados', flujo: 'Flujo de fondos', empresas: 'Empresas', cuentas: 'Plan de cuentas', asientos: 'Asientos contables', saldos: 'Saldos por cuenta', inversiones: 'Inversiones' };
 
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -71,7 +71,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('page-' + page).classList.add('active');
     document.getElementById('page-title').textContent = titles[page];
     const btnNuevo = document.getElementById('btn-nuevo');
-btnNuevo.textContent = page === 'empresas' ? '+ Nueva empresa' : page === 'cuentas' ? '+ Nueva cuenta' : page === 'asientos' ? '+ Nuevo asiento' : page === 'inversiones' ? '+ Nueva inversión' : '+ Nuevo movimiento';    btnNuevo.dataset.context = page;
+    btnNuevo.textContent = page === 'empresas' ? '+ Nueva empresa' : page === 'cuentas' ? '+ Nueva cuenta' : page === 'asientos' ? '+ Nuevo asiento' : page === 'inversiones' ? '+ Nueva inversión' : '+ Nuevo movimiento'; btnNuevo.dataset.context = page;
     if (page === 'er') renderER();
     if (page === 'flujo') renderFlujo();
     if (page === 'empresas') renderEmpresas();
@@ -136,6 +136,8 @@ function openModal(id) {
   clearForm();
   populateEmpresaSelect();
   populateCuentaSelect();
+  actualizarConceptoSegunTipo();
+
   if (editId) { const m = movimientos.find(x => x.id === editId); if (m) fillForm(m); }
   else document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('modal-overlay').classList.remove('hidden');
@@ -197,26 +199,26 @@ document.getElementById('modal-overlay').addEventListener('click', e => { if (e.
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-  const fecha   = document.getElementById('f-fecha').value;
+  const fecha = document.getElementById('f-fecha').value;
   const detalle = document.getElementById('f-detalle').value.trim();
-  const monto   = document.getElementById('f-monto').value;
+  const monto = document.getElementById('f-monto').value;
   if (!fecha || !detalle || !monto) { errEl.textContent = 'Completá los campos obligatorios: Fecha, Detalle y Monto.'; return; }
-  const empresaId  = document.getElementById('f-empresa-select').value || null;
+  const empresaId = document.getElementById('f-empresa-select').value || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
-  const tipo       = document.getElementById('f-tipo').value;
-  const montoNum   = parseFloat(monto) || 0;
+  const tipo = document.getElementById('f-tipo').value;
+  const montoNum = parseFloat(monto) || 0;
 
   const mov = {
     fecha, tipo, detalle,
-    empresa:       empresaObj ? empresaObj.nombre : null,
-    empresa_id:    empresaId,
-    cuit:          empresaObj ? empresaObj.cuit : null,
-    monto:         montoNum,
-    monto_neto:    parseFloat(document.getElementById('f-neto').value) || null,
-    tipo_cambio:   parseFloat(document.getElementById('f-tc').value) || null,
-    usd:           parseFloat(document.getElementById('f-usd').value) || null,
+    empresa: empresaObj ? empresaObj.nombre : null,
+    empresa_id: empresaId,
+    cuit: empresaObj ? empresaObj.cuit : null,
+    monto: montoNum,
+    monto_neto: parseFloat(document.getElementById('f-neto').value) || null,
+    tipo_cambio: parseFloat(document.getElementById('f-tc').value) || null,
+    usd: parseFloat(document.getElementById('f-usd').value) || null,
     clasificacion: document.getElementById('f-cuenta').value || null,
-    documento:     document.getElementById('f-doc').value || null,
+    documento: document.getElementById('f-doc').value || null,
     observaciones: document.getElementById('f-obs').value || null,
   };
 
@@ -233,7 +235,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       movId = newMov.id;
 
       // Generar asiento automático si tiene empresa
-const concepto = document.getElementById('f-concepto').value;
+      const concepto = document.getElementById('f-concepto').value;
       if (empresaId && concepto) {
         await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId, concepto });
       }
@@ -242,8 +244,39 @@ const concepto = document.getElementById('f-concepto').value;
     closeModal();
     await loadMovimientos();
     await loadCuentasCorrientes();
-  } catch(e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+  } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
+
+function actualizarConceptoSegunTipo() {
+  const tipo = document.getElementById('f-tipo').value;
+  const sel = document.getElementById('f-concepto');
+  if (!sel) return;
+
+  const opciones = {
+    Ingreso: [
+      { value: 'factura_emitida', label: 'Venta / Factura emitida (cliente queda debiendo)' },
+      { value: 'cobro_efectivo', label: 'Cobro (cancela deuda del cliente)' },
+      { value: 'nota_debito_emitida', label: 'Nota de débito emitida (aumenta deuda del cliente)' },
+      { value: 'nota_credito_emitida', label: 'Nota de crédito emitida (reduce ingreso / deuda)' },
+    ],
+    Egreso: [
+      { value: 'factura_recibida', label: 'Compra / Factura recibida (quedamos debiendo)' },
+      { value: 'pago_realizado', label: 'Pago (cancela nuestra deuda con proveedor)' },
+      { value: 'nota_debito_recibida', label: 'Nota de débito recibida (aumenta nuestra deuda)' },
+      { value: 'nota_credito_recibida', label: 'Nota de crédito recibida (reduce egreso / deuda)' },
+    ],
+  };
+
+  const lista = opciones[tipo] || [];
+  sel.innerHTML = '<option value="">Sin impacto en cuenta corriente</option>';
+  if (lista.length) {
+    lista.forEach(o => { sel.innerHTML += `<option value="${o.value}">${o.label}</option>`; });
+  } else {
+    sel.innerHTML += '<option value="" disabled>No aplica para este tipo</option>';
+  }
+}
+
+document.getElementById('f-tipo').addEventListener('change', actualizarConceptoSegunTipo);
 
 // ── MODAL EMPRESA ─────────────────────────────────────────────────────────────
 function openModalEmpresa(id) {
@@ -343,7 +376,7 @@ function renderStats() {
 }
 
 function populateTipoFilter() {
-  const tipos = ['Ingreso','Egreso','Inversión','Préstamo','Tarjeta de crédito','Banco / Transferencia'];
+  const tipos = ['Ingreso', 'Egreso', 'Inversión', 'Préstamo', 'Tarjeta de crédito', 'Banco / Transferencia'];
   const cont = document.getElementById('filter-tipo-options');
   if (!cont) return;
   cont.innerHTML = tipos.map(t => `
@@ -355,13 +388,13 @@ function populateTipoFilter() {
 }
 
 function populateMesFilter() {
-  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0,7) : '').filter(Boolean))].sort().reverse();
+  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort().reverse();
   const cont = document.getElementById('filter-mes-options');
   if (!cont) return;
   cont.innerHTML = meses.map(m => {
-    const [y,mo] = m.split('-');
-    const nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    return `<label class="chk-option"><span>${nom[parseInt(mo)-1]} ${y}</span><input type="checkbox" value="${m}"></label>`;
+    const [y, mo] = m.split('-');
+    const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `<label class="chk-option"><span>${nom[parseInt(mo) - 1]} ${y}</span><input type="checkbox" value="${m}"></label>`;
   }).join('');
   cont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderTable));
 }
@@ -433,10 +466,10 @@ function renderEmpresas() {
       : '';
     return `<tr>
       <td style="font-weight:500">${e.nombre}</td>
-      <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit||'—'}</td>
-      <td class="muted-text">${e.condicion_iva||'—'}</td>
-      <td class="muted-text">${e.email||'—'}</td>
-      <td class="muted-text">${e.telefono||'—'}</td>
+      <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit || '—'}</td>
+      <td class="muted-text">${e.condicion_iva || '—'}</td>
+      <td class="muted-text">${e.email || '—'}</td>
+      <td class="muted-text">${e.telefono || '—'}</td>
       <td class="r">${saldoLabel}</td>
       <td style="text-align:right;white-space:nowrap">
         ${btnSaldo}
@@ -471,17 +504,17 @@ function renderCuentas() {
 
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────────────────
 function renderER() {
-  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0,7) : '').filter(Boolean))].sort();
+  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
   if (!meses.length) { document.getElementById('er-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`; return; }
-  const nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  const getTotal = (tipo, mes) => movimientos.filter(m => m.tipo === tipo && (m.fecha||'').startsWith(mes)).reduce((s,m) => s+(m.monto||0), 0);
+  const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const getTotal = (tipo, mes) => movimientos.filter(m => m.tipo === tipo && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + (m.monto || 0), 0);
 
   let html = '<thead><tr><th>Rubro</th>';
-  meses.forEach(m => { const [y,mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo)-1]} ${y}</th>`; });
+  meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html += '<th class="r">Total</th></tr></thead><tbody>';
 
   // ── Ingresos
-  html += `<tr style="background:var(--bg)"><td colspan="${meses.length+2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Ingresos</td></tr>`;
+  html += `<tr style="background:var(--bg)"><td colspan="${meses.length + 2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Ingresos</td></tr>`;
   let totalIngresos = {};
   meses.forEach(m => { totalIngresos[m] = getTotal('Ingreso', m); });
   html += `<tr><td style="padding-left:24px">Ingresos operativos</td>`;
@@ -496,7 +529,7 @@ function renderER() {
   html += `<td class="r">$ ${fmt(grandIng)}</td></tr>`;
 
   // ── Egresos
-  html += `<tr style="background:var(--bg)"><td colspan="${meses.length+2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Egresos</td></tr>`;
+  html += `<tr style="background:var(--bg)"><td colspan="${meses.length + 2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Egresos</td></tr>`;
   let totalEgresos = {};
   meses.forEach(m => { totalEgresos[m] = getTotal('Egreso', m); });
   html += `<tr><td style="padding-left:24px">Egresos operativos</td>`;
@@ -515,9 +548,9 @@ function renderER() {
   let grandBruto = 0;
   meses.forEach(m => {
     const v = totalIngresos[m] - totalEgresos[m]; grandBruto += v;
-    html += `<td class="r ${v>=0?'pos-text':'neg-text'}">$ ${fmt(v)}</td>`;
+    html += `<td class="r ${v >= 0 ? 'pos-text' : 'neg-text'}">$ ${fmt(v)}</td>`;
   });
-  html += `<td class="r ${grandBruto>=0?'pos-text':'neg-text'}">$ ${fmt(grandBruto)}</td></tr>`;
+  html += `<td class="r ${grandBruto >= 0 ? 'pos-text' : 'neg-text'}">$ ${fmt(grandBruto)}</td></tr>`;
 
   // ── Contribución marginal (resultado bruto / ingresos)
   html += `<tr><td style="color:var(--text-muted);font-size:12px">Contribución marginal</td>`;
@@ -535,20 +568,20 @@ function renderER() {
 
   // Segunda tabla
   const otros = [
-    { label:'Tarjetas de crédito',     tipo:'Tarjeta de crédito',    sign:-1 },
-    { label:'Bancos / Transferencias', tipo:'Banco / Transferencia', sign: 1 },
-    { label:'Inversiones',             tipo:'Inversión',             sign: 1 },
-    { label:'Préstamos',               tipo:'Préstamo',              sign: 1 },
+    { label: 'Tarjetas de crédito', tipo: 'Tarjeta de crédito', sign: -1 },
+    { label: 'Bancos / Transferencias', tipo: 'Banco / Transferencia', sign: 1 },
+    { label: 'Inversiones', tipo: 'Inversión', sign: 1 },
+    { label: 'Préstamos', tipo: 'Préstamo', sign: 1 },
   ];
   let html2 = '<thead><tr><th>Otros movimientos</th>';
-  meses.forEach(m => { const [y,mo] = m.split('-'); html2 += `<th class="r">${nom[parseInt(mo)-1]} ${y}</th>`; });
+  meses.forEach(m => { const [y, mo] = m.split('-'); html2 += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html2 += '<th class="r">Total</th></tr></thead><tbody>';
   otros.forEach(cat => {
     html2 += `<tr><td>${cat.label}</td>`;
     let rowT = 0;
     meses.forEach(m => {
       const v = getTotal(cat.tipo, m) * cat.sign; rowT += v;
-      html2 += `<td class="r ${v<0?'neg-text':v>0?'pos-text':'muted-text'}">$ ${fmt(Math.abs(v))}</td>`;
+      html2 += `<td class="r ${v < 0 ? 'neg-text' : v > 0 ? 'pos-text' : 'muted-text'}">$ ${fmt(Math.abs(v))}</td>`;
     });
     html2 += `<td class="r" style="font-weight:500">$ ${fmt(Math.abs(rowT))}</td></tr>`;
   });
@@ -563,47 +596,47 @@ function renderFlujo() {
   const hasta = document.getElementById('flujo-hasta')?.value || '';
 
   let movsFiltrados = movimientos;
-  if (desde) movsFiltrados = movsFiltrados.filter(m => (m.fecha||'') >= desde);
-  if (hasta) movsFiltrados = movsFiltrados.filter(m => (m.fecha||'') <= hasta);
+  if (desde) movsFiltrados = movsFiltrados.filter(m => (m.fecha || '') >= desde);
+  if (hasta) movsFiltrados = movsFiltrados.filter(m => (m.fecha || '') <= hasta);
 
-  const meses = [...new Set(movsFiltrados.map(m => m.fecha ? m.fecha.substring(0,7) : '').filter(Boolean))].sort();
+  const meses = [...new Set(movsFiltrados.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
   if (!meses.length) {
     document.getElementById('flujo-stats').innerHTML = '';
     document.getElementById('flujo-table').innerHTML = `<tr><td><div class="empty-state">Sin datos para el período seleccionado.</div></td></tr>`;
     return;
   }
-  const nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  const getSum = (tipos, mes) => movsFiltrados.filter(m => tipos.includes(m.tipo) && (m.fecha||'').startsWith(mes)).reduce((s,m) => s+(m.monto||0), 0);
+  const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const getSum = (tipos, mes) => movsFiltrados.filter(m => tipos.includes(m.tipo) && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + (m.monto || 0), 0);
   const filas = [
-    { label:'Ingresos',         tipos:['Ingreso'],                 sign: 1 },
-    { label:'Egresos',          tipos:['Egreso'],                  sign:-1 },
-    { label:'Tarjetas',         tipos:['Tarjeta de crédito'],      sign:-1 },
-    { label:'Bancos / Transf.', tipos:['Banco / Transferencia'],   sign: 1 },
-    { label:'Inversiones',      tipos:['Inversión'],               sign: 1 },
-    { label:'Préstamos',        tipos:['Préstamo'],                sign: 1 },
+    { label: 'Ingresos', tipos: ['Ingreso'], sign: 1 },
+    { label: 'Egresos', tipos: ['Egreso'], sign: -1 },
+    { label: 'Tarjetas', tipos: ['Tarjeta de crédito'], sign: -1 },
+    { label: 'Bancos / Transf.', tipos: ['Banco / Transferencia'], sign: 1 },
+    { label: 'Inversiones', tipos: ['Inversión'], sign: 1 },
+    { label: 'Préstamos', tipos: ['Préstamo'], sign: 1 },
   ];
   let html = '<thead><tr><th>Concepto</th>';
-  meses.forEach(m => { const [y,mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo)-1]} ${y}</th>`; });
+  meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html += '</tr></thead><tbody>';
   filas.forEach(f => {
     html += `<tr><td>${f.label}</td>`;
-    meses.forEach(mes => { const v = getSum(f.tipos, mes)*f.sign; html += `<td class="r ${v<0?'neg-text':'muted-text'}">$ ${fmt(Math.abs(v))}</td>`; });
+    meses.forEach(mes => { const v = getSum(f.tipos, mes) * f.sign; html += `<td class="r ${v < 0 ? 'neg-text' : 'muted-text'}">$ ${fmt(Math.abs(v))}</td>`; });
     html += '</tr>';
   });
-  const flujos = meses.map(mes => getSum(['Ingreso'],mes) - getSum(['Egreso','Tarjeta de crédito'],mes));
+  const flujos = meses.map(mes => getSum(['Ingreso'], mes) - getSum(['Egreso', 'Tarjeta de crédito'], mes));
   html += '<tr class="er-subtotal"><td>Flujo neto del mes</td>';
-  flujos.forEach(v => { html += `<td class="r ${v<0?'neg-text':'pos-text'}">$ ${fmt(v)}</td>`; });
+  flujos.forEach(v => { html += `<td class="r ${v < 0 ? 'neg-text' : 'pos-text'}">$ ${fmt(v)}</td>`; });
   html += '</tr><tr class="er-total"><td>Saldo acumulado</td>';
   let acum = 0;
   flujos.forEach(v => { acum += v; html += `<td class="r">$ ${fmt(acum)}</td>`; });
   html += '</tr></tbody>';
   document.getElementById('flujo-table').innerHTML = html;
-  const totalIng = movsFiltrados.filter(m => m.tipo==='Ingreso').reduce((s,m)=>s+(m.monto||0),0);
-  const totalEg  = movsFiltrados.filter(m => m.tipo==='Egreso'||m.tipo==='Tarjeta de crédito').reduce((s,m)=>s+(m.monto||0),0);
+  const totalIng = movsFiltrados.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
+  const totalEg = movsFiltrados.filter(m => m.tipo === 'Egreso' || m.tipo === 'Tarjeta de crédito').reduce((s, m) => s + (m.monto || 0), 0);
   document.getElementById('flujo-stats').innerHTML = `
     <div class="stat-card"><div class="stat-label">Ingresos acum.</div><div class="stat-value pos">$ ${fmt(totalIng)}</div></div>
     <div class="stat-card"><div class="stat-label">Egresos acum.</div><div class="stat-value neg">$ ${fmt(totalEg)}</div></div>
-    <div class="stat-card"><div class="stat-label">Posición neta</div><div class="stat-value ${acum>=0?'pos':'neg'}">$ ${fmt(acum)}</div></div>
+    <div class="stat-card"><div class="stat-label">Posición neta</div><div class="stat-value ${acum >= 0 ? 'pos' : 'neg'}">$ ${fmt(acum)}</div></div>
     <div class="stat-card"><div class="stat-label">Meses analizados</div><div class="stat-value">${meses.length}</div></div>
   `;
 }
@@ -934,25 +967,25 @@ function openModalInversion(id) {
 
   if (editInvId) {
     const inv = inversiones.find(x => x.id === editInvId);
-    document.getElementById('mi-nombre').value   = inv.nombre || '';
-    document.getElementById('mi-tipo').value     = inv.tipo || 'FCI';
-    document.getElementById('mi-entidad').value  = inv.entidad || '';
-    document.getElementById('mi-moneda').value   = inv.moneda || 'ARS';
-    document.getElementById('mi-tna').value      = inv.tna || '';
-    document.getElementById('mi-inicio').value   = inv.fecha_inicio || '';
-    document.getElementById('mi-venc').value     = inv.fecha_vencimiento || '';
-    document.getElementById('mi-monto').value    = inv.monto_inicial || '';
-    document.getElementById('mi-saldo').value    = inv.saldo_actual || '';
-    document.getElementById('mi-estado').value   = inv.estado || 'Activa';
-    document.getElementById('mi-obs').value      = inv.observaciones || '';
+    document.getElementById('mi-nombre').value = inv.nombre || '';
+    document.getElementById('mi-tipo').value = inv.tipo || 'FCI';
+    document.getElementById('mi-entidad').value = inv.entidad || '';
+    document.getElementById('mi-moneda').value = inv.moneda || 'ARS';
+    document.getElementById('mi-tna').value = inv.tna || '';
+    document.getElementById('mi-inicio').value = inv.fecha_inicio || '';
+    document.getElementById('mi-venc').value = inv.fecha_vencimiento || '';
+    document.getElementById('mi-monto').value = inv.monto_inicial || '';
+    document.getElementById('mi-saldo').value = inv.saldo_actual || '';
+    document.getElementById('mi-estado').value = inv.estado || 'Activa';
+    document.getElementById('mi-obs').value = inv.observaciones || '';
   } else {
-    ['nombre','entidad','tna','venc','obs'].forEach(f => { document.getElementById('mi-'+f).value = ''; });
-    document.getElementById('mi-tipo').value   = 'FCI';
+    ['nombre', 'entidad', 'tna', 'venc', 'obs'].forEach(f => { document.getElementById('mi-' + f).value = ''; });
+    document.getElementById('mi-tipo').value = 'FCI';
     document.getElementById('mi-moneda').value = 'ARS';
     document.getElementById('mi-estado').value = 'Activa';
     document.getElementById('mi-inicio').value = new Date().toISOString().split('T')[0];
-    document.getElementById('mi-monto').value  = '';
-    document.getElementById('mi-saldo').value  = '';
+    document.getElementById('mi-monto').value = '';
+    document.getElementById('mi-saldo').value = '';
   }
   document.getElementById('modal-inversion').classList.remove('hidden');
 }
@@ -966,7 +999,7 @@ document.getElementById('mi-guardar').addEventListener('click', async () => {
   err.textContent = '';
   const nombre = document.getElementById('mi-nombre').value.trim();
   const inicio = document.getElementById('mi-inicio').value;
-  const monto  = document.getElementById('mi-monto').value;
+  const monto = document.getElementById('mi-monto').value;
   if (!nombre || !inicio || !monto) { err.textContent = 'Nombre, fecha de inicio y monto son obligatorios.'; return; }
   const montoNum = parseFloat(monto) || 0;
   const saldoNum = parseFloat(document.getElementById('mi-saldo').value) || montoNum;
@@ -995,7 +1028,7 @@ document.getElementById('mi-guardar').addEventListener('click', async () => {
     }
     closeModalInversion();
     await loadInversiones();
-  } catch(e) { err.textContent = 'Error: ' + e.message; }
+  } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
 
 // ── MODAL MOVIMIENTO INVERSION ────────────────────────────────────────────────
@@ -1017,7 +1050,7 @@ document.getElementById('mim-guardar').addEventListener('click', async () => {
   const err = document.getElementById('mim-error');
   err.textContent = '';
   const invId = document.getElementById('mim-inv-id').value;
-  const tipo  = document.getElementById('mim-tipo').value;
+  const tipo = document.getElementById('mim-tipo').value;
   const monto = parseFloat(document.getElementById('mim-monto').value) || 0;
   const fecha = document.getElementById('mim-fecha').value;
   if (!monto || !fecha) { err.textContent = 'Monto y fecha son obligatorios.'; return; }
@@ -1039,7 +1072,7 @@ document.getElementById('mim-guardar').addEventListener('click', async () => {
     }).eq('id', invId);
     closeModalMovInversion();
     await loadInversiones();
-  } catch(e) { err.textContent = 'Error: ' + e.message; }
+  } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
 
 // ── VER DETALLE INVERSION ─────────────────────────────────────────────────────
@@ -1048,7 +1081,7 @@ function verInversion(id) {
   if (!inv) return;
   const saldoConIntereses = calcularSaldoConIntereses(inv);
   const intereses = calcularInteresesAcumulados(inv);
-  const movs = (inv.inversion_movimientos || []).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  const movs = (inv.inversion_movimientos || []).sort((a, b) => b.fecha.localeCompare(a.fecha));
   let html = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
       <div class="stat-card"><div class="stat-label">Saldo actual</div><div class="stat-value">${inv.moneda === 'USD' ? 'U$S' : '$'} ${fmt(inv.saldo_actual)}</div></div>
@@ -1061,9 +1094,9 @@ function verInversion(id) {
       <tbody>
       ${movs.map(m => `<tr>
         <td style="font-family:var(--mono);font-size:12px;color:var(--text-muted)">${m.fecha}</td>
-        <td><span class="badge ${m.tipo==='Rescate'?'b-eg':'b-ing'}">${m.tipo}</span></td>
-        <td class="r" style="font-family:var(--mono)">${inv.moneda==='USD'?'U$S':'$'} ${fmt(m.monto)}</td>
-        <td class="r" style="font-family:var(--mono)">${inv.moneda==='USD'?'U$S':'$'} ${fmt(m.saldo_post)}</td>
+        <td><span class="badge ${m.tipo === 'Rescate' ? 'b-eg' : 'b-ing'}">${m.tipo}</span></td>
+        <td class="r" style="font-family:var(--mono)">${inv.moneda === 'USD' ? 'U$S' : '$'} ${fmt(m.monto)}</td>
+        <td class="r" style="font-family:var(--mono)">${inv.moneda === 'USD' ? 'U$S' : '$'} ${fmt(m.saldo_post)}</td>
       </tr>`).join('')}
       </tbody>
     </table>
@@ -1077,10 +1110,10 @@ function renderInversiones() {
   const tbody = document.getElementById('inversiones-body');
   if (!tbody) return;
 
-  const totalActivo = inversiones.filter(i => i.estado === 'Activa').reduce((s,i) => s + calcularSaldoConIntereses(i), 0);
+  const totalActivo = inversiones.filter(i => i.estado === 'Activa').reduce((s, i) => s + calcularSaldoConIntereses(i), 0);
   document.getElementById('inv-stats').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total invertido activo</div><div class="stat-value pos">$ ${fmt(totalActivo)}</div></div>
-    <div class="stat-card"><div class="stat-label">Inversiones activas</div><div class="stat-value">${inversiones.filter(i=>i.estado==='Activa').length}</div></div>
+    <div class="stat-card"><div class="stat-label">Inversiones activas</div><div class="stat-value">${inversiones.filter(i => i.estado === 'Activa').length}</div></div>
     <div class="stat-card"><div class="stat-label">Total inversiones</div><div class="stat-value">${inversiones.length}</div></div>
   `;
 
@@ -1097,9 +1130,9 @@ function renderInversiones() {
     return `<tr>
       <td style="font-weight:500">${inv.nombre}</td>
       <td><span class="badge b-inv">${inv.tipo}</span></td>
-      <td class="muted-text">${inv.entidad||'—'}</td>
+      <td class="muted-text">${inv.entidad || '—'}</td>
       <td class="r" style="font-family:var(--mono)">${moneda} ${fmt(inv.saldo_actual)}</td>
-      <td class="r pos-text" style="font-family:var(--mono)">${intereses > 0 ? '+ '+moneda+' '+fmt(intereses) : '—'}</td>
+      <td class="r pos-text" style="font-family:var(--mono)">${intereses > 0 ? '+ ' + moneda + ' ' + fmt(intereses) : '—'}</td>
       <td><span class="badge ${estadoBadge}">${inv.estado}</span></td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="verInversion('${inv.id}')">Ver</button>
@@ -1135,21 +1168,21 @@ function getSaldoEmpresa(empresaId) {
 async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId, concepto }) {
   if (!concepto || !empresaObj) return;
 
-  const ctaACobrar  = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
-  const ctaAPagar   = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+  const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
+  const ctaAPagar = cuentas.find(c => c.nombre === 'Cuentas a pagar');
   const ctaIngresos = cuentas.find(c => c.nombre === 'Ventas' || c.tipo === 'Ingreso');
-  const ctaEgresos  = cuentas.find(c => c.nombre === 'Compras' || c.tipo === 'Egreso');
+  const ctaEgresos = cuentas.find(c => c.nombre === 'Compras' || c.tipo === 'Egreso');
   const ctaEfectivo = cuentas.find(c => c.nombre === 'Efectivo ARS');
 
   const conceptoMap = {
-    factura_emitida:      { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre||'Ingresos',  ccDebe: montoNum, ccHaber: 0, label: 'Factura emitida' },
-    cobro_efectivo:       { debe: ctaEfectivo?.nombre||'Efectivo ARS', haber: 'Cuentas a cobrar', ccDebe: 0, ccHaber: montoNum, label: 'Cobro' },
-    nota_debito_emitida:  { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre||'Ingresos',  ccDebe: montoNum, ccHaber: 0, label: 'Nota de débito emitida' },
-    nota_credito_emitida: { debe: ctaIngresos?.nombre||'Ingresos', haber: 'Cuentas a cobrar',  ccDebe: 0, ccHaber: montoNum, label: 'Nota de crédito emitida' },
-    factura_recibida:     { debe: ctaEgresos?.nombre||'Egresos', haber: 'Cuentas a pagar',     ccDebe: 0, ccHaber: montoNum, label: 'Factura recibida' },
-    pago_realizado:       { debe: 'Cuentas a pagar', haber: ctaEfectivo?.nombre||'Efectivo ARS', ccDebe: montoNum, ccHaber: 0, label: 'Pago realizado' },
-    nota_debito_recibida: { debe: ctaEgresos?.nombre||'Egresos', haber: 'Cuentas a pagar',     ccDebe: 0, ccHaber: montoNum, label: 'Nota de débito recibida' },
-    nota_credito_recibida:{ debe: 'Cuentas a pagar', haber: ctaEgresos?.nombre||'Egresos',     ccDebe: montoNum, ccHaber: 0, label: 'Nota de crédito recibida' },
+    factura_emitida: { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre || 'Ingresos', ccDebe: montoNum, ccHaber: 0, label: 'Factura emitida' },
+    cobro_efectivo: { debe: ctaEfectivo?.nombre || 'Efectivo ARS', haber: 'Cuentas a cobrar', ccDebe: 0, ccHaber: montoNum, label: 'Cobro' },
+    nota_debito_emitida: { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre || 'Ingresos', ccDebe: montoNum, ccHaber: 0, label: 'Nota de débito emitida' },
+    nota_credito_emitida: { debe: ctaIngresos?.nombre || 'Ingresos', haber: 'Cuentas a cobrar', ccDebe: 0, ccHaber: montoNum, label: 'Nota de crédito emitida' },
+    factura_recibida: { debe: ctaEgresos?.nombre || 'Egresos', haber: 'Cuentas a pagar', ccDebe: 0, ccHaber: montoNum, label: 'Factura recibida' },
+    pago_realizado: { debe: 'Cuentas a pagar', haber: ctaEfectivo?.nombre || 'Efectivo ARS', ccDebe: montoNum, ccHaber: 0, label: 'Pago realizado' },
+    nota_debito_recibida: { debe: ctaEgresos?.nombre || 'Egresos', haber: 'Cuentas a pagar', ccDebe: 0, ccHaber: montoNum, label: 'Nota de débito recibida' },
+    nota_credito_recibida: { debe: 'Cuentas a pagar', haber: ctaEgresos?.nombre || 'Egresos', ccDebe: montoNum, ccHaber: 0, label: 'Nota de crédito recibida' },
   };
 
   const cfg = conceptoMap[concepto];
@@ -1158,7 +1191,7 @@ async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum,
   const cuentaIdPorNombre = (nombre) => cuentas.find(c => c.nombre === nombre)?.id || null;
 
   const lineas = [
-    { cuenta_id: cuentaIdPorNombre(cfg.debe),  cuenta_nombre: cfg.debe,  debe: montoNum, haber: 0 },
+    { cuenta_id: cuentaIdPorNombre(cfg.debe), cuenta_nombre: cfg.debe, debe: montoNum, haber: 0 },
     { cuenta_id: cuentaIdPorNombre(cfg.haber), cuenta_nombre: cfg.haber, debe: 0, haber: montoNum },
   ];
 
@@ -1173,14 +1206,14 @@ async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum,
 
   // Cuenta corriente
   const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
-  const saldoAnterior = ccMovs.reduce((s,c) => s + (c.debe||0) - (c.haber||0), 0);
+  const saldoAnterior = ccMovs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
   await sb.from('cuentas_corrientes').insert({
     user_id: userId,
     empresa_id: empresaObj.id,
     movimiento_id: movId,
     fecha,
     descripcion: `${cfg.label} — ${detalle}`,
-    debe:  cfg.ccDebe,
+    debe: cfg.ccDebe,
     haber: cfg.ccHaber,
     saldo: saldoAnterior + cfg.ccDebe - cfg.ccHaber,
   });
@@ -1192,15 +1225,15 @@ async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum,
 function openModalCobrarPagar(empresaId) {
   const emp = empresas.find(e => e.id === empresaId);
   const saldo = getSaldoEmpresa(empresaId);
-  document.getElementById('cp-empresa-id').value   = empresaId;
+  document.getElementById('cp-empresa-id').value = empresaId;
   document.getElementById('cp-empresa-nombre').textContent = emp?.nombre || '';
   document.getElementById('cp-saldo-actual').textContent = (saldo >= 0 ? 'Nos debe: $ ' : 'Les debemos: $ ') + fmt(Math.abs(saldo));
   document.getElementById('cp-saldo-actual').className = saldo >= 0 ? 'pos-text' : 'neg-text';
-  document.getElementById('cp-tipo').value  = saldo >= 0 ? 'Cobro' : 'Pago';
-  document.getElementById('cp-monto').value = fmt(Math.abs(saldo)).replace(/\./g,'');
+  document.getElementById('cp-tipo').value = saldo >= 0 ? 'Cobro' : 'Pago';
+  document.getElementById('cp-monto').value = fmt(Math.abs(saldo)).replace(/\./g, '');
   document.getElementById('cp-fecha').value = new Date().toISOString().split('T')[0];
   document.getElementById('cp-cuenta').value = '';
-  document.getElementById('cp-obs').value   = '';
+  document.getElementById('cp-obs').value = '';
   document.getElementById('cp-error').textContent = '';
   populateCpCuentaSelect();
   document.getElementById('modal-cobrar-pagar').classList.remove('hidden');
@@ -1222,9 +1255,9 @@ document.getElementById('cp-guardar').addEventListener('click', async () => {
   const err = document.getElementById('cp-error');
   err.textContent = '';
   const empresaId = document.getElementById('cp-empresa-id').value;
-  const tipo      = document.getElementById('cp-tipo').value;
-  const monto     = parseFloat(document.getElementById('cp-monto').value) || 0;
-  const fecha     = document.getElementById('cp-fecha').value;
+  const tipo = document.getElementById('cp-tipo').value;
+  const monto = parseFloat(document.getElementById('cp-monto').value) || 0;
+  const fecha = document.getElementById('cp-fecha').value;
   const cuentaVal = document.getElementById('cp-cuenta').value;
   if (!monto || !fecha || !cuentaVal) { err.textContent = 'Completá todos los campos.'; return; }
 
@@ -1237,7 +1270,7 @@ document.getElementById('cp-guardar').addEventListener('click', async () => {
 
     // Asiento de cancelación
     const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
-    const ctaAPagar  = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+    const ctaAPagar = cuentas.find(c => c.nombre === 'Cuentas a pagar');
 
     let lineas = [];
     if (tipo === 'Cobro') {
@@ -1261,7 +1294,7 @@ document.getElementById('cp-guardar').addEventListener('click', async () => {
     await sb.from('asiento_lineas').insert(lineas.map(l => ({ ...l, asiento_id: asiento.id })));
 
     // Registrar en cuenta corriente (cancelación)
-    const debe  = tipo === 'Pago'  ? monto : 0;
+    const debe = tipo === 'Pago' ? monto : 0;
     const haber = tipo === 'Cobro' ? monto : 0;
     await sb.from('cuentas_corrientes').insert({
       user_id: user.id, empresa_id: empresaId, fecha,
@@ -1285,5 +1318,5 @@ document.getElementById('cp-guardar').addEventListener('click', async () => {
     await loadMovimientos();
     await loadCuentasCorrientes();
     await loadAsientos();
-  } catch(e) { err.textContent = 'Error: ' + e.message; }
+  } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
