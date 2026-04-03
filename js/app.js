@@ -151,6 +151,7 @@ function populateEmpresaSelect() {
   empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — ' + e.cuit : ''}</option>`; });
   sel.value = cur;
 }
+
 function populateCuentaSelect() {
   const sel = document.getElementById('f-cuenta');
   if (!sel) return;
