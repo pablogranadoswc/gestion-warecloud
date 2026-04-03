@@ -93,7 +93,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
 async function loadAll() {
-  await Promise.all([loadMovimientos(), loadEmpresas(), loadCuentas()]);
+  await Promise.all([loadMovimientos(), loadEmpresas(), loadCuentas(), loadCuentasCorrientes()]);
 }
 
 async function loadMovimientos() {
@@ -181,30 +181,51 @@ document.getElementById('modal-overlay').addEventListener('click', e => { if (e.
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-  const fecha = document.getElementById('f-fecha').value;
+  const fecha   = document.getElementById('f-fecha').value;
   const detalle = document.getElementById('f-detalle').value.trim();
-  const monto = document.getElementById('f-monto').value;
+  const monto   = document.getElementById('f-monto').value;
   if (!fecha || !detalle || !monto) { errEl.textContent = 'Completá los campos obligatorios: Fecha, Detalle y Monto.'; return; }
-  const empresaId = document.getElementById('f-empresa-select').value || null;
+  const empresaId  = document.getElementById('f-empresa-select').value || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
+  const tipo       = document.getElementById('f-tipo').value;
+  const montoNum   = parseFloat(monto) || 0;
+
   const mov = {
-    fecha, tipo: document.getElementById('f-tipo').value, detalle,
-    empresa: empresaObj ? empresaObj.nombre : null,
-    empresa_id: empresaId,
-    cuit: empresaObj ? empresaObj.cuit : null,
-    monto: parseFloat(monto) || 0,
-    monto_neto: parseFloat(document.getElementById('f-neto').value) || null,
-    tipo_cambio: parseFloat(document.getElementById('f-tc').value) || null,
-    usd: parseFloat(document.getElementById('f-usd').value) || null,
+    fecha, tipo, detalle,
+    empresa:       empresaObj ? empresaObj.nombre : null,
+    empresa_id:    empresaId,
+    cuit:          empresaObj ? empresaObj.cuit : null,
+    monto:         montoNum,
+    monto_neto:    parseFloat(document.getElementById('f-neto').value) || null,
+    tipo_cambio:   parseFloat(document.getElementById('f-tc').value) || null,
+    usd:           parseFloat(document.getElementById('f-usd').value) || null,
     clasificacion: document.getElementById('f-cuenta').value || null,
-    documento: document.getElementById('f-doc').value || null,
+    documento:     document.getElementById('f-doc').value || null,
     observaciones: document.getElementById('f-obs').value || null,
   };
+
   try {
-    if (editId) await sb.from('movimientos').update(mov).eq('id', editId);
-    else { const { data: { user } } = await sb.auth.getUser(); await sb.from('movimientos').insert({ ...mov, user_id: user.id }); }
-    closeModal(); await loadMovimientos();
-  } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+    const { data: { user } } = await sb.auth.getUser();
+
+    let movId;
+    if (editId) {
+      await sb.from('movimientos').update(mov).eq('id', editId);
+      movId = editId;
+    } else {
+      const { data: newMov } = await sb.from('movimientos')
+        .insert({ ...mov, user_id: user.id }).select().single();
+      movId = newMov.id;
+
+      // Generar asiento automático si tiene empresa
+      if (empresaId && (tipo === 'Ingreso' || tipo === 'Egreso')) {
+        await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId: user.id });
+      }
+    }
+
+    closeModal();
+    await loadMovimientos();
+    await loadCuentasCorrientes();
+  } catch(e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
 
 // ── MODAL EMPRESA ─────────────────────────────────────────────────────────────
@@ -384,12 +405,15 @@ function renderEmpresas() {
     return;
   }
   tbody.innerHTML = empresas.map(e => {
-    const ing = movimientos.filter(m => m.empresa_id === e.id && m.tipo === 'Ingreso').reduce((s,m) => s+(m.monto||0), 0);
-    const eg  = movimientos.filter(m => m.empresa_id === e.id && m.tipo === 'Egreso').reduce((s,m) => s+(m.monto||0), 0);
-    const saldo = ing - eg;
-    const saldoLabel = saldo === 0 ? '<span class="muted-text">$ 0</span>'
-      : saldo > 0 ? `<span class="pos-text" style="font-weight:500">+ $ ${fmt(saldo)}</span>`
-      : `<span class="neg-text" style="font-weight:500">- $ ${fmt(Math.abs(saldo))}</span>`;
+    const saldo = getSaldoEmpresa(e.id);
+    const saldoLabel = saldo === 0
+      ? '<span class="muted-text">$ 0</span>'
+      : saldo > 0
+        ? `<span class="pos-text" style="font-weight:500">Nos debe $ ${fmt(saldo)}</span>`
+        : `<span class="neg-text" style="font-weight:500">Debemos $ ${fmt(Math.abs(saldo))}</span>`;
+    const btnSaldo = saldo !== 0
+      ? `<button class="btn btn-sm" onclick="openModalCobrarPagar('${e.id}')">${saldo > 0 ? 'Cobrar' : 'Pagar'}</button>`
+      : '';
     return `<tr>
       <td style="font-weight:500">${e.nombre}</td>
       <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit||'—'}</td>
@@ -398,6 +422,7 @@ function renderEmpresas() {
       <td class="muted-text">${e.telefono||'—'}</td>
       <td class="r">${saldoLabel}</td>
       <td style="text-align:right;white-space:nowrap">
+        ${btnSaldo}
         <button class="btn btn-sm" onclick="openModalEmpresa('${e.id}')">Editar</button>
         <button class="btn btn-sm btn-del" onclick="eliminarEmpresa('${e.id}')">Eliminar</button>
       </td>
@@ -1074,3 +1099,163 @@ async function eliminarInversion(id) {
   await sb.from('inversiones').delete().eq('id', id);
   await loadInversiones();
 }
+
+// ── CUENTAS CORRIENTES ────────────────────────────────────────────────────────
+let cuentasCorrientes = [];
+
+async function loadCuentasCorrientes() {
+  const { data } = await sb.from('cuentas_corrientes')
+    .select('*').order('fecha', { ascending: false });
+  cuentasCorrientes = data || [];
+  renderEmpresas();
+}
+
+function getSaldoEmpresa(empresaId) {
+  const movs = cuentasCorrientes.filter(c => c.empresa_id === empresaId);
+  return movs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
+}
+
+async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId }) {
+  const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
+  const ctaAPagar  = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+  const ctaIngresos = cuentas.find(c => c.nombre === 'Ventas' || c.tipo === 'Ingreso');
+  const ctaEgresos  = cuentas.find(c => c.nombre === 'Compras' || c.tipo === 'Egreso');
+
+  let lineas = [];
+  if (tipo === 'Ingreso') {
+    lineas = [
+      { cuenta_id: ctaACobrar?.id || null, cuenta_nombre: 'Cuentas a cobrar', debe: montoNum, haber: 0 },
+      { cuenta_id: ctaIngresos?.id || null, cuenta_nombre: ctaIngresos?.nombre || 'Ingresos', debe: 0, haber: montoNum },
+    ];
+  } else {
+    lineas = [
+      { cuenta_id: ctaEgresos?.id || null,  cuenta_nombre: ctaEgresos?.nombre || 'Egresos', debe: montoNum, haber: 0 },
+      { cuenta_id: ctaAPagar?.id || null,   cuenta_nombre: 'Cuentas a pagar', debe: 0, haber: montoNum },
+    ];
+  }
+
+  const { data: asiento } = await sb.from('asientos').insert({
+    user_id: userId, fecha,
+    descripcion: `${tipo} — ${detalle}${empresaObj ? ' ('+empresaObj.nombre+')' : ''}`,
+    empresa_id: empresaObj?.id || null,
+  }).select().single();
+
+  await sb.from('asiento_lineas').insert(lineas.map(l => ({ ...l, asiento_id: asiento.id })));
+  await sb.from('movimientos').update({ asiento_id: asiento.id }).eq('id', movId);
+
+  // Registrar en cuenta corriente
+  if (empresaObj) {
+    const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
+    const saldoAnterior = ccMovs.reduce((s,c) => s + (c.debe||0) - (c.haber||0), 0);
+    const debe  = tipo === 'Ingreso' ? montoNum : 0;
+    const haber = tipo === 'Egreso'  ? montoNum : 0;
+    await sb.from('cuentas_corrientes').insert({
+      user_id: userId,
+      empresa_id: empresaObj.id,
+      movimiento_id: movId,
+      fecha, descripcion: detalle,
+      debe, haber,
+      saldo: saldoAnterior + debe - haber,
+    });
+  }
+}
+
+// ── COBRAR / PAGAR EMPRESA ────────────────────────────────────────────────────
+function openModalCobrarPagar(empresaId) {
+  const emp = empresas.find(e => e.id === empresaId);
+  const saldo = getSaldoEmpresa(empresaId);
+  document.getElementById('cp-empresa-id').value   = empresaId;
+  document.getElementById('cp-empresa-nombre').textContent = emp?.nombre || '';
+  document.getElementById('cp-saldo-actual').textContent = (saldo >= 0 ? 'Nos debe: $ ' : 'Les debemos: $ ') + fmt(Math.abs(saldo));
+  document.getElementById('cp-saldo-actual').className = saldo >= 0 ? 'pos-text' : 'neg-text';
+  document.getElementById('cp-tipo').value  = saldo >= 0 ? 'Cobro' : 'Pago';
+  document.getElementById('cp-monto').value = fmt(Math.abs(saldo)).replace(/\./g,'');
+  document.getElementById('cp-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('cp-cuenta').value = '';
+  document.getElementById('cp-obs').value   = '';
+  document.getElementById('cp-error').textContent = '';
+  populateCpCuentaSelect();
+  document.getElementById('modal-cobrar-pagar').classList.remove('hidden');
+}
+
+function populateCpCuentaSelect() {
+  const sel = document.getElementById('cp-cuenta');
+  sel.innerHTML = '<option value="">Seleccionar cuenta...</option>';
+  cuentas.filter(c => c.tipo === 'Activo').forEach(c => {
+    sel.innerHTML += `<option value="${c.id}|${c.nombre}">${c.codigo} — ${c.nombre}</option>`;
+  });
+}
+
+function closeModalCobrarPagar() { document.getElementById('modal-cobrar-pagar').classList.add('hidden'); }
+document.getElementById('cp-close').addEventListener('click', closeModalCobrarPagar);
+document.getElementById('cp-cancelar').addEventListener('click', closeModalCobrarPagar);
+
+document.getElementById('cp-guardar').addEventListener('click', async () => {
+  const err = document.getElementById('cp-error');
+  err.textContent = '';
+  const empresaId = document.getElementById('cp-empresa-id').value;
+  const tipo      = document.getElementById('cp-tipo').value;
+  const monto     = parseFloat(document.getElementById('cp-monto').value) || 0;
+  const fecha     = document.getElementById('cp-fecha').value;
+  const cuentaVal = document.getElementById('cp-cuenta').value;
+  if (!monto || !fecha || !cuentaVal) { err.textContent = 'Completá todos los campos.'; return; }
+
+  const [cuentaId, cuentaNombre] = cuentaVal.split('|');
+  const emp = empresas.find(e => e.id === empresaId);
+  const saldoActual = getSaldoEmpresa(empresaId);
+
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+
+    // Asiento de cancelación
+    const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
+    const ctaAPagar  = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+
+    let lineas = [];
+    if (tipo === 'Cobro') {
+      lineas = [
+        { cuenta_id: cuentaId, cuenta_nombre: cuentaNombre, debe: monto, haber: 0 },
+        { cuenta_id: ctaACobrar?.id || null, cuenta_nombre: 'Cuentas a cobrar', debe: 0, haber: monto },
+      ];
+    } else {
+      lineas = [
+        { cuenta_id: ctaAPagar?.id || null, cuenta_nombre: 'Cuentas a pagar', debe: monto, haber: 0 },
+        { cuenta_id: cuentaId, cuenta_nombre: cuentaNombre, debe: 0, haber: monto },
+      ];
+    }
+
+    const desc = `${tipo} — ${emp?.nombre || ''} — $ ${fmt(monto)}`;
+    const { data: asiento } = await sb.from('asientos').insert({
+      user_id: user.id, fecha, descripcion: desc, empresa_id: empresaId,
+      observaciones: document.getElementById('cp-obs').value || null,
+    }).select().single();
+
+    await sb.from('asiento_lineas').insert(lineas.map(l => ({ ...l, asiento_id: asiento.id })));
+
+    // Registrar en cuenta corriente (cancelación)
+    const debe  = tipo === 'Pago'  ? monto : 0;
+    const haber = tipo === 'Cobro' ? monto : 0;
+    await sb.from('cuentas_corrientes').insert({
+      user_id: user.id, empresa_id: empresaId, fecha,
+      descripcion: desc,
+      debe, haber,
+      saldo: saldoActual - haber + debe,
+    });
+
+    // Registrar movimiento
+    await sb.from('movimientos').insert({
+      user_id: user.id, fecha,
+      tipo: tipo === 'Cobro' ? 'Ingreso' : 'Egreso',
+      detalle: desc,
+      empresa: emp?.nombre || null,
+      empresa_id: empresaId,
+      monto,
+      asiento_id: asiento.id,
+    });
+
+    closeModalCobrarPagar();
+    await loadMovimientos();
+    await loadCuentasCorrientes();
+    await loadAsientos();
+  } catch(e) { err.textContent = 'Error: ' + e.message; }
+});

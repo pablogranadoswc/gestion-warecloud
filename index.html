@@ -188,6 +188,7 @@
                   <th>Condición IVA</th>
                   <th>Email</th>
                   <th>Teléfono</th>
+                  <th class="r">Saldo</th>
                   <th></th>
                 </tr>
               </thead>
@@ -519,6 +520,51 @@
       <p id="mim-error" class="error-msg"></p>
     </div>
   </div>
+
+  <!-- MODAL COBRAR / PAGAR -->
+<div class="modal-overlay hidden" id="modal-cobrar-pagar">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h2 id="cp-title">Cobrar / Pagar</h2>
+      <button class="modal-close" id="cp-close">✕</button>
+    </div>
+    <input type="hidden" id="cp-empresa-id">
+    <div style="padding:0 1.5rem 1rem">
+      <p style="font-size:15px;font-weight:500;margin-bottom:4px" id="cp-empresa-nombre"></p>
+      <p style="font-size:13px;margin-bottom:1rem" id="cp-saldo-actual"></p>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="cp-tipo">
+          <option value="Cobro">Cobro</option>
+          <option value="Pago">Pago</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha *</label>
+        <input type="date" id="cp-fecha">
+      </div>
+      <div class="form-group full">
+        <label>Cuenta destino *</label>
+        <select id="cp-cuenta"></select>
+      </div>
+      <div class="form-group full">
+        <label>Monto *</label>
+        <input type="number" id="cp-monto" step="0.01">
+      </div>
+      <div class="form-group full">
+        <label>Observaciones</label>
+        <input type="text" id="cp-obs">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cp-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="cp-guardar">Confirmar</button>
+    </div>
+    <p id="cp-error" class="error-msg"></p>
+  </div>
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
