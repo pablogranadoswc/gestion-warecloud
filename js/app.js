@@ -304,23 +304,27 @@ function renderStats() {
   `;
 }
 
-function populateMesFilter() {
-  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort().reverse();
-  const cont = document.getElementById('filter-mes-options');
+function populateTipoFilter() {
+  const tipos = ['Ingreso','Egreso','Inversión','Préstamo','Tarjeta de crédito','Banco / Transferencia'];
+  const cont = document.getElementById('filter-tipo-options');
   if (!cont) return;
-  cont.innerHTML = meses.map(m => {
-    const [y, mo] = m.split('-');
-    const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return `<label class="chk-option"><input type="checkbox" value="${m}"> ${nom[parseInt(mo) - 1]} ${y}</label>`;
-  }).join('');
+  cont.innerHTML = tipos.map(t => `
+    <label class="chk-option">
+      <span>${t}</span>
+      <input type="checkbox" value="${t}">
+    </label>`).join('');
   cont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderTable));
 }
 
-function populateTipoFilter() {
-  const tipos = ['Ingreso', 'Egreso', 'Inversión', 'Préstamo', 'Tarjeta de crédito', 'Banco / Transferencia'];
-  const cont = document.getElementById('filter-tipo-options');
+function populateMesFilter() {
+  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0,7) : '').filter(Boolean))].sort().reverse();
+  const cont = document.getElementById('filter-mes-options');
   if (!cont) return;
-  cont.innerHTML = tipos.map(t => `<label class="chk-option"><input type="checkbox" value="${t}"> ${t}</label>`).join('');
+  cont.innerHTML = meses.map(m => {
+    const [y,mo] = m.split('-');
+    const nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `<label class="chk-option"><span>${nom[parseInt(mo)-1]} ${y}</span><input type="checkbox" value="${m}"></label>`;
+  }).join('');
   cont.querySelectorAll('input').forEach(i => i.addEventListener('change', renderTable));
 }
 
@@ -376,22 +380,29 @@ function renderEmpresas() {
   const tbody = document.getElementById('empresas-body');
   if (!tbody) return;
   if (!empresas.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Sin empresas. Hacé clic en "+ Nueva empresa".</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Sin empresas.</div></td></tr>`;
     return;
   }
-  tbody.innerHTML = empresas.map(e => `
-    <tr>
+  tbody.innerHTML = empresas.map(e => {
+    const ing = movimientos.filter(m => m.empresa_id === e.id && m.tipo === 'Ingreso').reduce((s,m) => s+(m.monto||0), 0);
+    const eg  = movimientos.filter(m => m.empresa_id === e.id && m.tipo === 'Egreso').reduce((s,m) => s+(m.monto||0), 0);
+    const saldo = ing - eg;
+    const saldoLabel = saldo === 0 ? '<span class="muted-text">$ 0</span>'
+      : saldo > 0 ? `<span class="pos-text" style="font-weight:500">+ $ ${fmt(saldo)}</span>`
+      : `<span class="neg-text" style="font-weight:500">- $ ${fmt(Math.abs(saldo))}</span>`;
+    return `<tr>
       <td style="font-weight:500">${e.nombre}</td>
-      <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit || '—'}</td>
-      <td class="muted-text">${e.condicion_iva || '—'}</td>
-      <td class="muted-text">${e.email || '—'}</td>
-      <td class="muted-text">${e.telefono || '—'}</td>
+      <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit||'—'}</td>
+      <td class="muted-text">${e.condicion_iva||'—'}</td>
+      <td class="muted-text">${e.email||'—'}</td>
+      <td class="muted-text">${e.telefono||'—'}</td>
+      <td class="r">${saldoLabel}</td>
       <td style="text-align:right;white-space:nowrap">
         <button class="btn btn-sm" onclick="openModalEmpresa('${e.id}')">Editar</button>
         <button class="btn btn-sm btn-del" onclick="eliminarEmpresa('${e.id}')">Eliminar</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 // ── RENDER CUENTAS ────────────────────────────────────────────────────────────
@@ -418,76 +429,139 @@ function renderCuentas() {
 
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────────────────
 function renderER() {
-  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
+  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0,7) : '').filter(Boolean))].sort();
   if (!meses.length) { document.getElementById('er-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`; return; }
-  const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const getTotal = (tipo, mes) => movimientos.filter(m => m.tipo === tipo && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + (m.monto || 0), 0);
-  const categorias = [
-    { label: 'Ingresos', tipo: 'Ingreso', sign: 1 },
-    { label: 'Egresos', tipo: 'Egreso', sign: -1 },
-    { label: 'Tarjetas de crédito', tipo: 'Tarjeta de crédito', sign: -1 },
-    { label: 'Bancos / Transferencias', tipo: 'Banco / Transferencia', sign: 1 },
-    { label: 'Inversiones', tipo: 'Inversión', sign: 1 },
-    { label: 'Préstamos', tipo: 'Préstamo', sign: 1 },
-  ];
+  const nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const getTotal = (tipo, mes) => movimientos.filter(m => m.tipo === tipo && (m.fecha||'').startsWith(mes)).reduce((s,m) => s+(m.monto||0), 0);
+
   let html = '<thead><tr><th>Rubro</th>';
-  meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
+  meses.forEach(m => { const [y,mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo)-1]} ${y}</th>`; });
   html += '<th class="r">Total</th></tr></thead><tbody>';
-  categorias.forEach(cat => {
-    html += `<tr><td>${cat.label}</td>`;
-    let rowTotal = 0;
-    meses.forEach(mes => {
-      const v = getTotal(cat.tipo, mes) * cat.sign; rowTotal += v;
-      html += `<td class="r ${v < 0 ? 'neg-text' : v > 0 ? 'pos-text' : 'muted-text'}">$ ${fmt(Math.abs(v))}</td>`;
-    });
-    html += `<td class="r ${rowTotal < 0 ? 'neg-text' : 'pos-text'}" style="font-weight:500">$ ${fmt(Math.abs(rowTotal))}</td></tr>`;
+
+  // ── Ingresos
+  html += `<tr style="background:var(--bg)"><td colspan="${meses.length+2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Ingresos</td></tr>`;
+  let totalIngresos = {};
+  meses.forEach(m => { totalIngresos[m] = getTotal('Ingreso', m); });
+  html += `<tr><td style="padding-left:24px">Ingresos operativos</td>`;
+  let rowTotalIng = 0;
+  meses.forEach(m => { rowTotalIng += totalIngresos[m]; html += `<td class="r pos-text">$ ${fmt(totalIngresos[m])}</td>`; });
+  html += `<td class="r pos-text" style="font-weight:500">$ ${fmt(rowTotalIng)}</td></tr>`;
+
+  // ── Subtotal ingresos
+  html += `<tr class="er-subtotal"><td>Total ingresos</td>`;
+  let grandIng = 0;
+  meses.forEach(m => { grandIng += totalIngresos[m]; html += `<td class="r">$ ${fmt(totalIngresos[m])}</td>`; });
+  html += `<td class="r">$ ${fmt(grandIng)}</td></tr>`;
+
+  // ── Egresos
+  html += `<tr style="background:var(--bg)"><td colspan="${meses.length+2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Egresos</td></tr>`;
+  let totalEgresos = {};
+  meses.forEach(m => { totalEgresos[m] = getTotal('Egreso', m); });
+  html += `<tr><td style="padding-left:24px">Egresos operativos</td>`;
+  let rowTotalEg = 0;
+  meses.forEach(m => { rowTotalEg += totalEgresos[m]; html += `<td class="r neg-text">$ ${fmt(totalEgresos[m])}</td>`; });
+  html += `<td class="r neg-text" style="font-weight:500">$ ${fmt(rowTotalEg)}</td></tr>`;
+
+  // ── Subtotal egresos
+  html += `<tr class="er-subtotal"><td>Total egresos</td>`;
+  let grandEg = 0;
+  meses.forEach(m => { grandEg += totalEgresos[m]; html += `<td class="r">$ ${fmt(totalEgresos[m])}</td>`; });
+  html += `<td class="r">$ ${fmt(grandEg)}</td></tr>`;
+
+  // ── Resultado bruto
+  html += `<tr class="er-total"><td>Resultado bruto</td>`;
+  let grandBruto = 0;
+  meses.forEach(m => {
+    const v = totalIngresos[m] - totalEgresos[m]; grandBruto += v;
+    html += `<td class="r ${v>=0?'pos-text':'neg-text'}">$ ${fmt(v)}</td>`;
   });
-  html += '<tr class="er-total"><td>Resultado neto</td>';
-  let grand = 0;
-  meses.forEach(mes => {
-    const res = getTotal('Ingreso', mes) - getTotal('Egreso', mes) - getTotal('Tarjeta de crédito', mes);
-    grand += res; html += `<td class="r">$ ${fmt(res)}</td>`;
+  html += `<td class="r ${grandBruto>=0?'pos-text':'neg-text'}">$ ${fmt(grandBruto)}</td></tr>`;
+
+  // ── Contribución marginal (resultado bruto / ingresos)
+  html += `<tr><td style="color:var(--text-muted);font-size:12px">Contribución marginal</td>`;
+  meses.forEach(m => {
+    const ing = totalIngresos[m]; const eg = totalEgresos[m];
+    const cm = ing > 0 ? ((ing - eg) / ing * 100) : 0;
+    html += `<td class="r" style="color:var(--text-muted);font-size:12px">${cm.toFixed(1)}%</td>`;
   });
-  html += `<td class="r">$ ${fmt(grand)}</td></tr></tbody>`;
+  const cmTotal = grandIng > 0 ? ((grandIng - grandEg) / grandIng * 100) : 0;
+  html += `<td class="r" style="color:var(--text-muted);font-size:12px">${cmTotal.toFixed(1)}%</td></tr>`;
+
+  // ── Tabla separada: otros movimientos
+  html += `</tbody>`;
   document.getElementById('er-table').innerHTML = html;
+
+  // Segunda tabla
+  const otros = [
+    { label:'Tarjetas de crédito',     tipo:'Tarjeta de crédito',    sign:-1 },
+    { label:'Bancos / Transferencias', tipo:'Banco / Transferencia', sign: 1 },
+    { label:'Inversiones',             tipo:'Inversión',             sign: 1 },
+    { label:'Préstamos',               tipo:'Préstamo',              sign: 1 },
+  ];
+  let html2 = '<thead><tr><th>Otros movimientos</th>';
+  meses.forEach(m => { const [y,mo] = m.split('-'); html2 += `<th class="r">${nom[parseInt(mo)-1]} ${y}</th>`; });
+  html2 += '<th class="r">Total</th></tr></thead><tbody>';
+  otros.forEach(cat => {
+    html2 += `<tr><td>${cat.label}</td>`;
+    let rowT = 0;
+    meses.forEach(m => {
+      const v = getTotal(cat.tipo, m) * cat.sign; rowT += v;
+      html2 += `<td class="r ${v<0?'neg-text':v>0?'pos-text':'muted-text'}">$ ${fmt(Math.abs(v))}</td>`;
+    });
+    html2 += `<td class="r" style="font-weight:500">$ ${fmt(Math.abs(rowT))}</td></tr>`;
+  });
+  html2 += '</tbody>';
+  document.getElementById('er-table-otros').innerHTML = html2;
 }
 
 // ── FLUJO DE FONDOS ───────────────────────────────────────────────────────────
+
 function renderFlujo() {
-  const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
-  if (!meses.length) { document.getElementById('flujo-stats').innerHTML = ''; document.getElementById('flujo-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`; return; }
-  const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const getSum = (tipos, mes) => movimientos.filter(m => tipos.includes(m.tipo) && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + (m.monto || 0), 0);
+  const desde = document.getElementById('flujo-desde')?.value || '';
+  const hasta = document.getElementById('flujo-hasta')?.value || '';
+
+  let movsFiltrados = movimientos;
+  if (desde) movsFiltrados = movsFiltrados.filter(m => (m.fecha||'') >= desde);
+  if (hasta) movsFiltrados = movsFiltrados.filter(m => (m.fecha||'') <= hasta);
+
+  const meses = [...new Set(movsFiltrados.map(m => m.fecha ? m.fecha.substring(0,7) : '').filter(Boolean))].sort();
+  if (!meses.length) {
+    document.getElementById('flujo-stats').innerHTML = '';
+    document.getElementById('flujo-table').innerHTML = `<tr><td><div class="empty-state">Sin datos para el período seleccionado.</div></td></tr>`;
+    return;
+  }
+  const nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const getSum = (tipos, mes) => movsFiltrados.filter(m => tipos.includes(m.tipo) && (m.fecha||'').startsWith(mes)).reduce((s,m) => s+(m.monto||0), 0);
   const filas = [
-    { label: 'Ingresos', tipos: ['Ingreso'], sign: 1 },
-    { label: 'Egresos', tipos: ['Egreso'], sign: -1 },
-    { label: 'Tarjetas', tipos: ['Tarjeta de crédito'], sign: -1 },
-    { label: 'Bancos / Transf.', tipos: ['Banco / Transferencia'], sign: 1 },
-    { label: 'Inversiones', tipos: ['Inversión'], sign: 1 },
-    { label: 'Préstamos', tipos: ['Préstamo'], sign: 1 },
+    { label:'Ingresos',         tipos:['Ingreso'],                 sign: 1 },
+    { label:'Egresos',          tipos:['Egreso'],                  sign:-1 },
+    { label:'Tarjetas',         tipos:['Tarjeta de crédito'],      sign:-1 },
+    { label:'Bancos / Transf.', tipos:['Banco / Transferencia'],   sign: 1 },
+    { label:'Inversiones',      tipos:['Inversión'],               sign: 1 },
+    { label:'Préstamos',        tipos:['Préstamo'],                sign: 1 },
   ];
   let html = '<thead><tr><th>Concepto</th>';
-  meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
+  meses.forEach(m => { const [y,mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo)-1]} ${y}</th>`; });
   html += '</tr></thead><tbody>';
   filas.forEach(f => {
     html += `<tr><td>${f.label}</td>`;
-    meses.forEach(mes => { const v = getSum(f.tipos, mes) * f.sign; html += `<td class="r ${v < 0 ? 'neg-text' : 'muted-text'}">$ ${fmt(Math.abs(v))}</td>`; });
+    meses.forEach(mes => { const v = getSum(f.tipos, mes)*f.sign; html += `<td class="r ${v<0?'neg-text':'muted-text'}">$ ${fmt(Math.abs(v))}</td>`; });
     html += '</tr>';
   });
-  const flujos = meses.map(mes => getSum(['Ingreso'], mes) - getSum(['Egreso', 'Tarjeta de crédito'], mes));
+  const flujos = meses.map(mes => getSum(['Ingreso'],mes) - getSum(['Egreso','Tarjeta de crédito'],mes));
   html += '<tr class="er-subtotal"><td>Flujo neto del mes</td>';
-  flujos.forEach(v => { html += `<td class="r ${v < 0 ? 'neg-text' : 'pos-text'}">$ ${fmt(v)}</td>`; });
+  flujos.forEach(v => { html += `<td class="r ${v<0?'neg-text':'pos-text'}">$ ${fmt(v)}</td>`; });
   html += '</tr><tr class="er-total"><td>Saldo acumulado</td>';
   let acum = 0;
   flujos.forEach(v => { acum += v; html += `<td class="r">$ ${fmt(acum)}</td>`; });
   html += '</tr></tbody>';
   document.getElementById('flujo-table').innerHTML = html;
-  const totalIng = movimientos.filter(m => m.tipo === 'Ingreso').reduce((s, m) => s + (m.monto || 0), 0);
-  const totalEg = movimientos.filter(m => m.tipo === 'Egreso' || m.tipo === 'Tarjeta de crédito').reduce((s, m) => s + (m.monto || 0), 0);
+  const totalIng = movsFiltrados.filter(m => m.tipo==='Ingreso').reduce((s,m)=>s+(m.monto||0),0);
+  const totalEg  = movsFiltrados.filter(m => m.tipo==='Egreso'||m.tipo==='Tarjeta de crédito').reduce((s,m)=>s+(m.monto||0),0);
   document.getElementById('flujo-stats').innerHTML = `
     <div class="stat-card"><div class="stat-label">Ingresos acum.</div><div class="stat-value pos">$ ${fmt(totalIng)}</div></div>
     <div class="stat-card"><div class="stat-label">Egresos acum.</div><div class="stat-value neg">$ ${fmt(totalEg)}</div></div>
-    <div class="stat-card"><div class="stat-label">Posición neta</div><div class="stat-value ${acum >= 0 ? 'pos' : 'neg'}">$ ${fmt(acum)}</div></div>
+    <div class="stat-card"><div class="stat-label">Posición neta</div><div class="stat-value ${acum>=0?'pos':'neg'}">$ ${fmt(acum)}</div></div>
     <div class="stat-card"><div class="stat-label">Meses analizados</div><div class="stat-value">${meses.length}</div></div>
   `;
 }
