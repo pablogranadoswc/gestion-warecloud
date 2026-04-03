@@ -134,6 +134,7 @@ function openModal(id) {
   document.getElementById('modal-title').textContent = editId ? 'Editar movimiento' : 'Nuevo movimiento';
   document.getElementById('form-error').textContent = '';
   clearForm();
+  populateEmpresaSelect();
   populateCuentaSelect();
   if (editId) { const m = movimientos.find(x => x.id === editId); if (m) fillForm(m); }
   else document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
