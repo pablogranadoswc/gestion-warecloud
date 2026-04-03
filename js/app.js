@@ -237,13 +237,16 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       // Generar asiento automático si tiene empresa
       const concepto = document.getElementById('f-concepto').value;
       if (empresaId && concepto) {
-        await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId, concepto });
+        const { data: { user } } = await sb.auth.getUser();
+        await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId: user.id, concepto });
       }
     }
 
     closeModal();
     await loadMovimientos();
     await loadCuentasCorrientes();
+        showSuccessBanner('✓ Movimiento registrado correctamente.');
+
   } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
 
