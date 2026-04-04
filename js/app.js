@@ -208,8 +208,13 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   const tipo = document.getElementById('f-tipo').value;
   const montoNum = parseFloat(monto) || 0;
 
+  const concepto = document.getElementById('f-concepto').value;
+  const tipoReal = (concepto === 'cobro_efectivo' || concepto === 'pago_realizado')
+    ? 'Banco / Transferencia'
+    : tipo;
+
   const mov = {
-    fecha, tipo, detalle,
+    fecha, tipo: tipoReal, detalle,
     empresa: empresaObj ? empresaObj.nombre : null,
     empresa_id: empresaId,
     cuit: empresaObj ? empresaObj.cuit : null,
@@ -235,7 +240,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       movId = newMov.id;
 
       // Generar asiento automático si tiene empresa
-      const concepto = document.getElementById('f-concepto').value;
       if (empresaId && concepto) {
         const { data: { user } } = await sb.auth.getUser();
         await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId: user.id, concepto });
@@ -245,7 +249,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     closeModal();
     await loadMovimientos();
     await loadCuentasCorrientes();
-        showSuccessBanner('✓ Movimiento registrado correctamente.');
+    showSuccessBanner('✓ Movimiento registrado correctamente.');
 
   } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
@@ -510,10 +514,10 @@ function renderER() {
   const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
   if (!meses.length) { document.getElementById('er-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`; return; }
   const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-const getTotal = (tipo, mes) => movimientos
-    .filter(m => m.tipo === tipo && (m.fecha||'').startsWith(mes))
-    .reduce((s,m) => s + (m.monto_neto || m.monto || 0), 0);
-    
+  const getTotal = (tipo, mes) => movimientos
+    .filter(m => m.tipo === tipo && (m.fecha || '').startsWith(mes))
+    .reduce((s, m) => s + (m.monto_neto || m.monto || 0), 0);
+
   let html = '<thead><tr><th>Rubro</th>';
   meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html += '<th class="r">Total</th></tr></thead><tbody>';
