@@ -510,8 +510,10 @@ function renderER() {
   const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
   if (!meses.length) { document.getElementById('er-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`; return; }
   const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const getTotal = (tipo, mes) => movimientos.filter(m => m.tipo === tipo && (m.fecha || '').startsWith(mes)).reduce((s, m) => s + (m.monto || 0), 0);
-
+const getTotal = (tipo, mes) => movimientos
+    .filter(m => m.tipo === tipo && (m.fecha||'').startsWith(mes))
+    .reduce((s,m) => s + (m.monto_neto || m.monto || 0), 0);
+    
   let html = '<thead><tr><th>Rubro</th>';
   meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html += '<th class="r">Total</th></tr></thead><tbody>';
