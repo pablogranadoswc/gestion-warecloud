@@ -29,7 +29,10 @@ function showApp(user) {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-email-display').textContent = user.email;
-  loadAll().then(() => initCuentasPredefinidas());
+  loadAll().then(async () => {
+    await initCuentasPredefinidas();
+    await agregarCuentasIVASiFaltan();
+  });
 }
 
 document.getElementById('btn-login').addEventListener('click', async () => {
@@ -111,46 +114,12 @@ async function loadCuentas() {
   cuentas = data || [];
 }
 
-// ── FORMAT ────────────────────────────────────────────────────────────────────
-function fmt(n) {
-  if (n === null || n === undefined || n === '') return '—';
-  return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function fmtSigned(n, tipo) {
-  const v = Number(n) || 0;
-  const esEg = tipo === 'Egreso' || tipo === 'Tarjeta de crédito';
-  return `<span class="${esEg ? 'neg-text' : 'pos-text'}">${esEg ? '-' : ''}$ ${fmt(Math.abs(v))}</span>`;
-}
-
-function badgeClass(tipo) {
-  const map = { 'Ingreso': 'b-ing', 'Egreso': 'b-eg', 'Inversión': 'b-inv', 'Préstamo': 'b-inv', 'Tarjeta de crédito': 'b-tar', 'Banco / Transferencia': 'b-ban' };
-  return 'badge ' + (map[tipo] || 'b-ing');
-}
-
-// ── MODAL MOVIMIENTO ──────────────────────────────────────────────────────────
-function openModal(id) {
-  editId = id || null;
-  document.getElementById('modal-title').textContent = editId ? 'Editar movimiento' : 'Nuevo movimiento';
-  document.getElementById('form-error').textContent = '';
-  clearForm();
-  populateEmpresaSelect();
-  populateCuentaSelect();
-  actualizarConceptoSegunTipo();
-
-  if (editId) { const m = movimientos.find(x => x.id === editId); if (m) fillForm(m); }
-  else document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
-  document.getElementById('modal-overlay').classList.remove('hidden');
-}
-
-function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
-
 function populateEmpresaSelect() {
   const sel = document.getElementById('f-empresa-select');
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">Sin empresa</option>';
-  empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — ' + e.cuit : ''}</option>`; });
+  empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — '+e.cuit : ''}</option>`; });
   sel.value = cur;
 }
 
@@ -165,29 +134,143 @@ function populateCuentaSelect() {
   sel.value = cur;
 }
 
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtSigned(n, tipo) {
+  const v = Number(n) || 0;
+  const esEg = tipo === 'Egreso' || tipo === 'Tarjeta de crédito';
+  return `<span class="${esEg ? 'neg-text' : 'pos-text'}">${esEg ? '-' : ''}$ ${fmt(Math.abs(v))}</span>`;
+}
+
+function badgeClass(tipo) {
+  const map = { 'Ingreso': 'b-ing', 'Egreso': 'b-eg', 'Inversión': 'b-inv', 'Préstamo': 'b-inv', 'Tarjeta de crédito': 'b-tar', 'Banco': 'b-ban' };
+  return 'badge ' + (map[tipo] || 'b-ing');
+}
+
+// ── MODAL MOVIMIENTO ──────────────────────────────────────────────────────────
+// ── MODAL COMPROBANTE ─────────────────────────────────────────────────────────
+let compLineas = [];
+
+function openModal(id) {
+  editId = id || null;
+  compLineas = [];
+  document.getElementById('modal-title').textContent = editId ? 'Editar comprobante' : 'Nuevo comprobante';
+  document.getElementById('form-error').textContent = '';
+  clearForm();
+  populateEmpresaSelect();
+  populateCuentaSelect();
+  populateCancelacionSelect();
+  if (editId) {
+    const m = movimientos.find(x => x.id === editId);
+    if (m) fillForm(m);
+  } else {
+    document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('f-tipo').value = 'Ingreso';
+    actualizarConceptoSegunTipo();
+    renderCompLineas([{ cuenta_id:'', cuenta_nombre:'', descripcion:'', monto_neto:0, iva_porcentaje:21, iva_monto:0, total:0 }]);
+  }
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+function populateCancelacionSelect() {
+  const sel = document.getElementById('f-cancelacion');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Queda pendiente (cta. a pagar/cobrar)</option>';
+  cuentas.filter(c => c.tipo === 'Activo').forEach(c => {
+    sel.innerHTML += `<option value="${c.id}|${c.nombre}">${c.codigo} — ${c.nombre}</option>`;
+  });
+}
+
+function renderCompLineas(lineas) {
+  compLineas = lineas;
+  const cont = document.getElementById('comp-lineas');
+  if (!cont) return;
+  cont.innerHTML = lineas.map((l, i) => `
+    <div class="linea-row" data-i="${i}">
+      <select class="cl-cuenta" style="flex:2" onchange="updateLineaCuenta(${i}, this)">
+        <option value="">Seleccionar cuenta...</option>
+        ${cuentas.filter(c => c.tipo === 'Ingreso' || c.tipo === 'Egreso').map(c =>
+          `<option value="${c.id}|${c.nombre}" ${l.cuenta_id === c.id ? 'selected' : ''}>${c.codigo} — ${c.nombre}</option>`
+        ).join('')}
+      </select>
+      <input type="text" class="cl-desc" placeholder="Descripción" value="${l.descripcion||''}" style="flex:1.5;min-width:100px" oninput="updateLinea(${i})">
+      <input type="number" class="cl-neto" placeholder="Neto" value="${l.monto_neto||''}" step="0.01" style="flex:1;min-width:80px" oninput="calcularLinea(${i})">
+      <input type="number" class="cl-iva" placeholder="IVA%" value="${l.iva_porcentaje||0}" step="0.01" style="flex:0.6;min-width:60px" oninput="calcularLinea(${i})">
+      <input type="number" class="cl-total" placeholder="Total" value="${l.total||''}" step="0.01" style="flex:1;min-width:80px" readonly style="background:var(--bg)">
+      <button class="btn btn-sm btn-del" onclick="eliminarCompLinea(${i})" style="flex-shrink:0">✕</button>
+    </div>
+  `).join('');
+  actualizarTotalesComp();
+}
+
+function updateLineaCuenta(i, sel) {
+  const [id, nombre] = sel.value.split('|');
+  compLineas[i].cuenta_id = id || '';
+  compLineas[i].cuenta_nombre = nombre || '';
+}
+
+function updateLinea(i) {
+  const row = document.querySelectorAll('.linea-row')[i];
+  compLineas[i].descripcion = row.querySelector('.cl-desc').value;
+}
+
+function calcularLinea(i) {
+  const row = document.querySelectorAll('.linea-row')[i];
+  const neto = parseFloat(row.querySelector('.cl-neto').value) || 0;
+  const ivaPct = parseFloat(row.querySelector('.cl-iva').value) || 0;
+  const ivaMonto = neto * ivaPct / 100;
+  const total = neto + ivaMonto;
+  row.querySelector('.cl-total').value = total.toFixed(2);
+  compLineas[i].monto_neto = neto;
+  compLineas[i].iva_porcentaje = ivaPct;
+  compLineas[i].iva_monto = ivaMonto;
+  compLineas[i].total = total;
+  actualizarTotalesComp();
+}
+
+function eliminarCompLinea(i) {
+  if (compLineas.length <= 1) return;
+  compLineas.splice(i, 1);
+  renderCompLineas(compLineas);
+}
+
+function actualizarTotalesComp() {
+  const totalNeto = compLineas.reduce((s,l) => s+(l.monto_neto||0), 0);
+  const totalIva  = compLineas.reduce((s,l) => s+(l.iva_monto||0), 0);
+  const total     = compLineas.reduce((s,l) => s+(l.total||0), 0);
+  const el = document.getElementById('comp-total');
+  if (el) el.innerHTML = `
+    <span class="muted-text">Neto: <strong>$ ${fmt(totalNeto)}</strong></span>
+    <span class="muted-text">IVA: <strong>$ ${fmt(totalIva)}</strong></span>
+    <span>Total: <strong style="font-size:15px">$ ${fmt(total)}</strong></span>
+  `;
+}
+
 function clearForm() {
-  ['fecha', 'detalle', 'monto', 'neto', 'tc', 'usd', 'cuenta', 'doc', 'obs'].forEach(f => {
-    const el = document.getElementById('f-' + f); if (el) el.value = '';
+  ['fecha','detalle','doc','obs'].forEach(f => {
+    const el = document.getElementById('f-'+f); if(el) el.value = '';
   });
   document.getElementById('f-tipo').value = 'Ingreso';
-  const sel = document.getElementById('f-empresa-select'); if (sel) sel.value = '';
-  const selConcepto = document.getElementById('f-concepto');
-  if (selConcepto) selConcepto.value = '';
+  const sel = document.getElementById('f-empresa-select'); if(sel) sel.value = '';
+  const selC = document.getElementById('f-cancelacion'); if(selC) selC.value = '';
+  compLineas = [];
 }
 
 function fillForm(m) {
-  document.getElementById('f-fecha').value = m.fecha || '';
-  document.getElementById('f-tipo').value = m.tipo || 'Ingreso';
+  document.getElementById('f-fecha').value   = m.fecha || '';
+  document.getElementById('f-tipo').value    = m.tipo || 'Ingreso';
   document.getElementById('f-detalle').value = m.detalle || '';
-  document.getElementById('f-monto').value = m.monto || '';
-  document.getElementById('f-neto').value = m.monto_neto || '';
-  document.getElementById('f-tc').value = m.tipo_cambio || '';
-  document.getElementById('f-usd').value = m.usd || '';
-  document.getElementById('f-cuenta').value = m.clasificacion || '';
-  document.getElementById('f-doc').value = m.documento || '';
-  document.getElementById('f-obs').value = m.observaciones || '';
+  document.getElementById('f-doc').value     = m.documento || '';
+  document.getElementById('f-obs').value     = m.observaciones || '';
   const sel = document.getElementById('f-empresa-select');
   if (sel) sel.value = m.empresa_id || '';
+  actualizarConceptoSegunTipo();
   const selConcepto = document.getElementById('f-concepto');
   if (selConcepto) selConcepto.value = m.concepto || '';
 }
@@ -195,6 +278,72 @@ function fillForm(m) {
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('btn-cancelar').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target.id === 'modal-overlay') closeModal(); });
+document.getElementById('f-tipo').addEventListener('change', actualizarConceptoSegunTipo);
+document.getElementById('comp-add-linea')?.addEventListener('click', () => {
+  compLineas.push({ cuenta_id:'', cuenta_nombre:'', descripcion:'', monto_neto:0, iva_porcentaje:21, iva_monto:0, total:0 });
+  renderCompLineas(compLineas);
+});
+
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  const errEl = document.getElementById('form-error');
+  errEl.textContent = '';
+  const fecha   = document.getElementById('f-fecha').value;
+  const detalle = document.getElementById('f-detalle').value.trim();
+  const tipo    = document.getElementById('f-tipo').value;
+  if (!fecha || !detalle) { errEl.textContent = 'Fecha y detalle son obligatorios.'; return; }
+  const lineasValidas = compLineas.filter(l => l.monto_neto > 0);
+  if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
+
+  const empresaId  = document.getElementById('f-empresa-select').value || null;
+  const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
+  const concepto   = document.getElementById('f-concepto')?.value || null;
+  const cancelVal  = document.getElementById('f-cancelacion')?.value || '';
+  const [cancelId, cancelNombre] = cancelVal ? cancelVal.split('|') : [null, null];
+
+  const totalNeto = lineasValidas.reduce((s,l) => s+(l.monto_neto||0), 0);
+  const totalIva  = lineasValidas.reduce((s,l) => s+(l.iva_monto||0), 0);
+  const total     = lineasValidas.reduce((s,l) => s+(l.total||0), 0);
+
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+
+    // Guardar en movimientos (para compatibilidad con tabla existente)
+    const movData = {
+      fecha, tipo, detalle,
+      empresa: empresaObj?.nombre || null,
+      empresa_id: empresaId,
+      cuit: empresaObj?.cuit || null,
+      monto: total,
+      monto_neto: totalNeto,
+      clasificacion: lineasValidas.map(l => l.cuenta_nombre).join(', '),
+      documento: document.getElementById('f-doc').value || null,
+      observaciones: document.getElementById('f-obs').value || null,
+      concepto,
+    };
+
+    let movId;
+    if (editId) {
+      await sb.from('movimientos').update(movData).eq('id', editId);
+      movId = editId;
+    } else {
+      const { data: newMov } = await sb.from('movimientos')
+        .insert({ ...movData, user_id: user.id }).select().single();
+      movId = newMov.id;
+    }
+
+    // Generar asiento automático con partida doble completa
+    await generarAsientoComprobante({
+      userId: user.id, movId, fecha, detalle, tipo, concepto,
+      lineas: lineasValidas, totalNeto, totalIva, total,
+      empresaObj, cancelId, cancelNombre,
+    });
+
+    closeModal();
+    await loadMovimientos();
+    await loadCuentasCorrientes();
+    showSuccessBanner('✓ Comprobante registrado correctamente.');
+  } catch(e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+});
 
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
@@ -210,7 +359,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 
   const concepto = document.getElementById('f-concepto').value;
   const tipoReal = (concepto === 'cobro_efectivo' || concepto === 'pago_realizado')
-    ? 'Banco / Transferencia'
+    ? 'Banco'
     : tipo;
 
   const mov = {
@@ -255,32 +404,41 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 });
 
 function actualizarConceptoSegunTipo() {
-  const tipo = document.getElementById('f-tipo').value;
-  const sel = document.getElementById('f-concepto');
+  const tipo = document.getElementById('f-tipo')?.value;
+  const sel  = document.getElementById('f-concepto');
   if (!sel) return;
 
   const opciones = {
     Ingreso: [
-      { value: 'factura_emitida', label: 'Venta / Factura emitida (cliente queda debiendo)' },
-      { value: 'cobro_efectivo', label: 'Cobro (cancela deuda del cliente)' },
-      { value: 'nota_debito_emitida', label: 'Nota de débito emitida (aumenta deuda del cliente)' },
-      { value: 'nota_credito_emitida', label: 'Nota de crédito emitida (reduce ingreso / deuda)' },
+      { value: 'factura_emitida',      label: 'Venta / Factura emitida (cliente queda debiendo)' },
+      { value: 'nota_debito_emitida',  label: 'Nota de débito emitida (aumenta deuda del cliente)' },
+      { value: 'nota_credito_emitida', label: 'Nota de crédito emitida (reduce ingreso)' },
     ],
     Egreso: [
-      { value: 'factura_recibida', label: 'Compra / Factura recibida (quedamos debiendo)' },
+      { value: 'factura_recibida',      label: 'Compra / Factura recibida (quedamos debiendo)' },
+      { value: 'nota_debito_recibida',  label: 'Nota de débito recibida (aumenta nuestra deuda)' },
+      { value: 'nota_credito_recibida', label: 'Nota de crédito recibida (reduce egreso)' },
+    ],
+    Cobro: [
+      { value: 'cobro_efectivo', label: 'Cobro (cancela deuda del cliente)' },
+    ],
+    Pago: [
       { value: 'pago_realizado', label: 'Pago (cancela nuestra deuda con proveedor)' },
-      { value: 'nota_debito_recibida', label: 'Nota de débito recibida (aumenta nuestra deuda)' },
-      { value: 'nota_credito_recibida', label: 'Nota de crédito recibida (reduce egreso / deuda)' },
     ],
   };
 
   const lista = opciones[tipo] || [];
   sel.innerHTML = '<option value="">Sin impacto en cuenta corriente</option>';
-  if (lista.length) {
-    lista.forEach(o => { sel.innerHTML += `<option value="${o.value}">${o.label}</option>`; });
-  } else {
-    sel.innerHTML += '<option value="" disabled>No aplica para este tipo</option>';
-  }
+  lista.forEach(o => { sel.innerHTML += `<option value="${o.value}">${o.label}</option>`; });
+
+  // Para Cobro y Pago preseleccionar automáticamente
+  if (tipo === 'Cobro') sel.value = 'cobro_efectivo';
+  if (tipo === 'Pago')  sel.value = 'pago_realizado';
+
+  // Mostrar/ocultar sección de líneas según tipo
+  const secLineas = document.getElementById('comp-lineas')?.closest('div[style]');
+  const esCancelacion = tipo === 'Cobro' || tipo === 'Pago';
+  if (secLineas) secLineas.style.display = esCancelacion ? 'none' : 'block';
 }
 
 document.getElementById('f-tipo').addEventListener('change', actualizarConceptoSegunTipo);
@@ -383,7 +541,7 @@ function renderStats() {
 }
 
 function populateTipoFilter() {
-  const tipos = ['Ingreso', 'Egreso', 'Inversión', 'Préstamo', 'Tarjeta de crédito', 'Banco / Transferencia'];
+  const tipos = ['Ingreso', 'Egreso', 'Inversión', 'Préstamo', 'Tarjeta de crédito', 'Banco'];
   const cont = document.getElementById('filter-tipo-options');
   if (!cont) return;
   cont.innerHTML = tipos.map(t => `
@@ -578,7 +736,7 @@ function renderER() {
   // Segunda tabla
   const otros = [
     { label: 'Tarjetas de crédito', tipo: 'Tarjeta de crédito', sign: -1 },
-    { label: 'Bancos / Transferencias', tipo: 'Banco / Transferencia', sign: 1 },
+    { label: 'Bancos / Transferencias', tipo: 'Banco', sign: 1 },
     { label: 'Inversiones', tipo: 'Inversión', sign: 1 },
     { label: 'Préstamos', tipo: 'Préstamo', sign: 1 },
   ];
@@ -620,7 +778,7 @@ function renderFlujo() {
     { label: 'Ingresos', tipos: ['Ingreso'], sign: 1 },
     { label: 'Egresos', tipos: ['Egreso'], sign: -1 },
     { label: 'Tarjetas', tipos: ['Tarjeta de crédito'], sign: -1 },
-    { label: 'Bancos / Transf.', tipos: ['Banco / Transferencia'], sign: 1 },
+    { label: 'Bancos / Transf.', tipos: ['Banco'], sign: 1 },
     { label: 'Inversiones', tipos: ['Inversión'], sign: 1 },
     { label: 'Préstamos', tipos: ['Préstamo'], sign: 1 },
   ];
@@ -696,10 +854,38 @@ const CUENTAS_PREDEFINIDAS = [
 async function initCuentasPredefinidas() {
   if (cuentas.length > 0) return;
   const { data: { user } } = await sb.auth.getUser();
-  const rows = CUENTAS_PREDEFINIDAS.map(c => ({ ...c, user_id: user.id }));
-  await sb.from('cuentas').insert(rows);
+  const predefinidas = [
+    { codigo: '01.01', nombre: 'Efectivo ARS',         tipo: 'Activo' },
+    { codigo: '01.02', nombre: 'Efectivo USD',         tipo: 'Activo' },
+    { codigo: '01.03', nombre: 'Banco Galicia',        tipo: 'Activo' },
+    { codigo: '01.04', nombre: 'Banco Nación',         tipo: 'Activo' },
+    { codigo: '01.05', nombre: 'Banco BBVA',           tipo: 'Activo' },
+    { codigo: '01.06', nombre: 'Mercado Pago',         tipo: 'Activo' },
+    { codigo: '02.01', nombre: 'Cuentas a pagar',      tipo: 'Pasivo' },
+    { codigo: '02.02', nombre: 'Cuentas a cobrar',     tipo: 'Activo' },
+    { codigo: '02.03', nombre: 'IVA Débito Fiscal',    tipo: 'Pasivo' },
+    { codigo: '02.04', nombre: 'IVA Crédito Fiscal',   tipo: 'Activo' },
+    { codigo: '03.01', nombre: 'Ventas',               tipo: 'Ingreso' },
+    { codigo: '03.02', nombre: 'Otros ingresos',       tipo: 'Ingreso' },
+    { codigo: '04.01', nombre: 'Compras',              tipo: 'Egreso' },
+    { codigo: '04.02', nombre: 'Sueldos',              tipo: 'Egreso' },
+    { codigo: '04.03', nombre: 'Impuestos',            tipo: 'Egreso' },
+    { codigo: '04.04', nombre: 'Gastos generales',     tipo: 'Egreso' },
+  ];
+  await sb.from('cuentas').insert(predefinidas.map(c => ({ ...c, user_id: user.id })));
   await loadCuentas();
   renderCuentas();
+}
+
+async function agregarCuentasIVASiFaltan() {
+  const tieneDebito  = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
+  const tieneCredito = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
+  if (tieneDebito && tieneCredito) return;
+  const { data: { user } } = await sb.auth.getUser();
+  const nuevas = [];
+  if (!tieneDebito)  nuevas.push({ codigo: '02.03', nombre: 'IVA Débito Fiscal',  tipo: 'Pasivo', user_id: user.id });
+  if (!tieneCredito) nuevas.push({ codigo: '02.04', nombre: 'IVA Crédito Fiscal', tipo: 'Activo', user_id: user.id });
+  if (nuevas.length) { await sb.from('cuentas').insert(nuevas); await loadCuentas(); }
 }
 
 async function loadAsientos() {
@@ -1174,60 +1360,80 @@ function getSaldoEmpresa(empresaId) {
   return movs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
 }
 
-async function generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId, concepto }) {
-  if (!concepto || !empresaObj) return;
+async function generarAsientoComprobante({ userId, movId, fecha, detalle, tipo, concepto, lineas, totalNeto, totalIva, total, empresaObj, cancelId, cancelNombre }) {
+  const ctaACobrar  = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
+  const ctaAPagar   = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+  const ctaIvaDB    = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
+  const ctaIvaCR    = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
 
-  const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
-  const ctaAPagar = cuentas.find(c => c.nombre === 'Cuentas a pagar');
-  const ctaIngresos = cuentas.find(c => c.nombre === 'Ventas' || c.tipo === 'Ingreso');
-  const ctaEgresos = cuentas.find(c => c.nombre === 'Compras' || c.tipo === 'Egreso');
-  const ctaEfectivo = cuentas.find(c => c.nombre === 'Efectivo ARS');
+  let asientoLineas = [];
 
-  const conceptoMap = {
-    factura_emitida: { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre || 'Ingresos', ccDebe: montoNum, ccHaber: 0, label: 'Factura emitida' },
-    cobro_efectivo: { debe: ctaEfectivo?.nombre || 'Efectivo ARS', haber: 'Cuentas a cobrar', ccDebe: 0, ccHaber: montoNum, label: 'Cobro' },
-    nota_debito_emitida: { debe: 'Cuentas a cobrar', haber: ctaIngresos?.nombre || 'Ingresos', ccDebe: montoNum, ccHaber: 0, label: 'Nota de débito emitida' },
-    nota_credito_emitida: { debe: ctaIngresos?.nombre || 'Ingresos', haber: 'Cuentas a cobrar', ccDebe: 0, ccHaber: montoNum, label: 'Nota de crédito emitida' },
-    factura_recibida: { debe: ctaEgresos?.nombre || 'Egresos', haber: 'Cuentas a pagar', ccDebe: 0, ccHaber: montoNum, label: 'Factura recibida' },
-    pago_realizado: { debe: 'Cuentas a pagar', haber: ctaEfectivo?.nombre || 'Efectivo ARS', ccDebe: montoNum, ccHaber: 0, label: 'Pago realizado' },
-    nota_debito_recibida: { debe: ctaEgresos?.nombre || 'Egresos', haber: 'Cuentas a pagar', ccDebe: 0, ccHaber: montoNum, label: 'Nota de débito recibida' },
-    nota_credito_recibida: { debe: 'Cuentas a pagar', haber: ctaEgresos?.nombre || 'Egresos', ccDebe: montoNum, ccHaber: 0, label: 'Nota de crédito recibida' },
-  };
+  if (tipo === 'Ingreso') {
+    // DEBE: Cuentas a cobrar (o cuenta de cancelación) por el total
+    const cuentaDebe = cancelId
+      ? { id: cancelId, nombre: cancelNombre }
+      : { id: ctaACobrar?.id, nombre: 'Cuentas a cobrar' };
+    asientoLineas.push({ cuenta_id: cuentaDebe.id || null, cuenta_nombre: cuentaDebe.nombre, debe: total, haber: 0 });
 
-  const cfg = conceptoMap[concepto];
-  if (!cfg) return;
+    // HABER: cada línea de ingreso por su neto
+    lineas.forEach(l => {
+      asientoLineas.push({ cuenta_id: l.cuenta_id || null, cuenta_nombre: l.cuenta_nombre, debe: 0, haber: l.monto_neto });
+    });
 
-  const cuentaIdPorNombre = (nombre) => cuentas.find(c => c.nombre === nombre)?.id || null;
+    // HABER: IVA Débito Fiscal si hay IVA
+    if (totalIva > 0) {
+      asientoLineas.push({ cuenta_id: ctaIvaDB?.id || null, cuenta_nombre: 'IVA Débito Fiscal', debe: 0, haber: totalIva });
+    }
 
-  const lineas = [
-    { cuenta_id: cuentaIdPorNombre(cfg.debe), cuenta_nombre: cfg.debe, debe: montoNum, haber: 0 },
-    { cuenta_id: cuentaIdPorNombre(cfg.haber), cuenta_nombre: cfg.haber, debe: 0, haber: montoNum },
-  ];
+  } else if (tipo === 'Egreso') {
+    // DEBE: cada línea de egreso por su neto
+    lineas.forEach(l => {
+      asientoLineas.push({ cuenta_id: l.cuenta_id || null, cuenta_nombre: l.cuenta_nombre, debe: l.monto_neto, haber: 0 });
+    });
 
+    // DEBE: IVA Crédito Fiscal si hay IVA
+    if (totalIva > 0) {
+      asientoLineas.push({ cuenta_id: ctaIvaCR?.id || null, cuenta_nombre: 'IVA Crédito Fiscal', debe: totalIva, haber: 0 });
+    }
+
+    // HABER: Cuentas a pagar (o cuenta de cancelación) por el total
+    const cuentaHaber = cancelId
+      ? { id: cancelId, nombre: cancelNombre }
+      : { id: ctaAPagar?.id, nombre: 'Cuentas a pagar' };
+    asientoLineas.push({ cuenta_id: cuentaHaber.id || null, cuenta_nombre: cuentaHaber.nombre, debe: 0, haber: total });
+  }
+
+  // Crear asiento
   const { data: asiento } = await sb.from('asientos').insert({
     user_id: userId, fecha,
-    descripcion: `${cfg.label} — ${detalle} (${empresaObj.nombre})`,
-    empresa_id: empresaObj.id,
+    descripcion: `${tipo} — ${detalle}${empresaObj ? ' ('+empresaObj.nombre+')' : ''}`,
+    empresa_id: empresaObj?.id || null,
   }).select().single();
 
-  await sb.from('asiento_lineas').insert(lineas.map(l => ({ ...l, asiento_id: asiento.id })));
+  await sb.from('asiento_lineas').insert(asientoLineas.map(l => ({ ...l, asiento_id: asiento.id })));
   await sb.from('movimientos').update({ asiento_id: asiento.id }).eq('id', movId);
 
-  // Cuenta corriente
-  const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
-  const saldoAnterior = ccMovs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
-  await sb.from('cuentas_corrientes').insert({
-    user_id: userId,
-    empresa_id: empresaObj.id,
-    movimiento_id: movId,
-    fecha,
-    descripcion: `${cfg.label} — ${detalle}`,
-    debe: cfg.ccDebe,
-    haber: cfg.ccHaber,
-    saldo: saldoAnterior + cfg.ccDebe - cfg.ccHaber,
-  });
-
-  await loadCuentasCorrientes();
+  // Cuenta corriente empresa
+  if (empresaObj && concepto) {
+    const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
+    const saldoAnterior = ccMovs.reduce((s,c) => s + (c.debe||0) - (c.haber||0), 0);
+    const conceptosQueDebian = ['factura_emitida','nota_debito_emitida'];
+    const conceptosQueAcreditan = ['nota_credito_emitida','cobro_efectivo'];
+    const conceptosQueDebo = ['factura_recibida','nota_debito_recibida'];
+    const conceptosQueCancelo = ['nota_credito_recibida','pago_realizado'];
+    let debe = 0, haber = 0;
+    if (conceptosQueDebian.includes(concepto)) debe = total;
+    else if (conceptosQueAcreditan.includes(concepto)) haber = total;
+    else if (conceptosQueDebo.includes(concepto)) haber = total;
+    else if (conceptosQueCancelo.includes(concepto)) debe = total;
+    if (debe > 0 || haber > 0) {
+      await sb.from('cuentas_corrientes').insert({
+        user_id: userId, empresa_id: empresaObj.id, movimiento_id: movId,
+        fecha, descripcion: detalle, debe, haber,
+        saldo: saldoAnterior + debe - haber,
+      });
+    }
+  }
 }
 
 // ── COBRAR / PAGAR EMPRESA ────────────────────────────────────────────────────
