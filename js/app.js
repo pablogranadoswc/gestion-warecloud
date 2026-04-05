@@ -180,18 +180,29 @@ function badgeClass(tipo) {
 // ── MODAL COMPROBANTE ─────────────────────────────────────────────────────────
 let compLineas = [];
 
-function openModal(id) {
+async function openModal(id) {
+  if (!empresas.length) {
+  await loadEmpresas();
+}
+  
   editId = id || null;
   compLineas = [];
   document.getElementById('modal-title').textContent = editId ? 'Editar comprobante' : 'Nuevo comprobante';
+
+
   document.getElementById('form-error').textContent = '';
   clearForm();
   populateEmpresaSelect();
   populateCuentaSelect();
   populateCancelacionSelect();
+
+
+
+
   if (editId) {
     const m = movimientos.find(x => x.id === editId);
     if (m) fillForm(m);
+
   } else {
     document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('f-tipo').value = 'Ingreso';
@@ -199,7 +210,14 @@ function openModal(id) {
     renderCompLineas([{ cuenta_id: '', cuenta_nombre: '', descripcion: '', monto_neto: 0, iva_porcentaje: 21, iva_monto: 0, total: 0 }]);
   }
   document.getElementById('modal-overlay').classList.remove('hidden');
+
+setTimeout(() => {
+  const input = document.getElementById('mov-empresa-input');
+  const dropdown = document.getElementById('mov-empresa-dropdown');
+  setupEmpresaAutocomplete(input, dropdown);
+}, 0);
 }
+
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 
@@ -216,46 +234,129 @@ function renderCompLineas(lineas) {
   compLineas = lineas;
   const cont = document.getElementById('comp-lineas');
   if (!cont) return;
+
   cont.innerHTML = lineas.map((l, i) => `
-    <div class="linea-row" data-i="${i}">
-      <select class="cl-cuenta" style="flex:2" onchange="updateLineaCuenta(${i}, this)">
-        <option value="">Seleccionar cuenta...</option>
-        ${cuentas.filter(c => c.tipo === 'Ingreso' || c.tipo === 'Egreso').map(c =>
-    `<option value="${c.id}|${c.nombre}" ${l.cuenta_id === c.id ? 'selected' : ''}>${c.codigo} — ${c.nombre}</option>`
-  ).join('')}
-      </select>
-      <input type="text" class="cl-desc" placeholder="Descripción" value="${l.descripcion || ''}" style="flex:1.5;min-width:100px" oninput="updateLinea(${i})">
-      <input type="number" class="cl-neto" placeholder="Neto" value="${l.monto_neto || ''}" step="0.01" style="flex:1;min-width:80px" oninput="calcularLinea(${i})">
-      <input type="number" class="cl-iva" placeholder="IVA%" value="${l.iva_porcentaje || 0}" step="0.01" style="flex:0.6;min-width:60px" oninput="calcularLinea(${i})">
-      <input type="number" class="cl-total" placeholder="Total" value="${l.total || ''}" step="0.01" style="flex:1;min-width:80px" readonly style="background:var(--bg)">
-      <button class="btn btn-sm btn-del" onclick="eliminarCompLinea(${i})" style="flex-shrink:0">✕</button>
+    <div class="linea-row comp-linea-row" data-i="${i}">
+
+      <!-- CUENTA AUTOCOMPLETE -->
+      <div style="position:relative;flex:2">
+        <input class="cl-cuenta-input" 
+               placeholder="Cuenta" 
+               value="${l.cuenta_nombre || ''}">
+        <div class="cl-cuenta-dropdown dropdown"></div>
+      </div>
+
+      <!-- DESCRIPCION -->
+      <input type="text" 
+             class="cl-desc" 
+             placeholder="Descripción" 
+             value="${l.descripcion || ''}" 
+             style="flex:1.5;min-width:100px" 
+             oninput="updateLinea(${i})">
+
+      <!-- NETO -->
+      <input type="number" 
+             class="cl-neto" 
+             placeholder="Neto" 
+             value="${l.monto_neto || ''}" 
+             step="0.01" 
+             style="flex:1;min-width:80px" 
+             oninput="calcularLinea(${i})">
+
+      <!-- IVA -->
+      <input type="number" 
+             class="cl-iva" 
+             placeholder="IVA%" 
+             value="${l.iva_porcentaje || 0}" 
+             step="0.01" 
+             style="flex:0.6;min-width:60px" 
+             oninput="calcularLinea(${i})">
+
+      <!-- TOTAL -->
+      <input type="number" 
+             class="cl-total" 
+             placeholder="Total" 
+             value="${l.total || ''}" 
+             step="0.01" 
+             readonly 
+             style="flex:1;min-width:80px;background:var(--bg)">
+
+      <button class="btn btn-sm btn-del" onclick="eliminarCompLinea(${i})">✕</button>
     </div>
   `).join('');
+
+  // 🔥 ACTIVAR AUTOCOMPLETE CUENTAS
+  cont.querySelectorAll('.comp-linea-row').forEach(row => {
+    const input = row.querySelector('.cl-cuenta-input');
+    const dropdown = row.querySelector('.cl-cuenta-dropdown');
+
+    if (!input || !dropdown) return;
+
+    const index = parseInt(row.dataset.i); // 🔥 CLAVE
+
+    input.addEventListener('input', () => {
+      const val = input.value.toLowerCase();
+
+      const results = cuentas.filter(c =>
+        (c.tipo === 'Ingreso' || c.tipo === 'Egreso') &&
+        (`${c.codigo} ${c.nombre}`).toLowerCase().includes(val)
+      );
+
+      dropdown.innerHTML = results.slice(0, 8).map(c =>
+        `<div class="dropdown-item" data-id="${c.id}" data-nombre="${c.nombre}">
+        ${c.codigo} — ${c.nombre}
+      </div>`
+      ).join('');
+
+      dropdown.querySelectorAll('.dropdown-item').forEach(item => {
+        item.onclick = () => {
+          input.value = item.textContent;
+          input.dataset.id = item.dataset.id;
+          input.dataset.nombre = item.dataset.nombre;
+          dropdown.innerHTML = '';
+
+          updateLineaCuenta(index, input); // 🔥 ahora sí correcto
+        };
+      });
+    });
+  });
+
   actualizarTotalesComp();
 }
 
-function updateLineaCuenta(i, sel) {
-  const [id, nombre] = sel.value.split('|');
-  compLineas[i].cuenta_id = id || '';
-  compLineas[i].cuenta_nombre = nombre || '';
+function updateLineaCuenta(i, input) {
+  const id = input.dataset.id;
+  const nombre = input.dataset.nombre;
+
+  if (!id) return;
+
+  compLineas[i].cuenta_id = id;
+  compLineas[i].cuenta_nombre = nombre;
 }
 
 function updateLinea(i) {
-  const row = document.querySelectorAll('.linea-row')[i];
+  const row = document.querySelector(`.comp-linea-row[data-i="${i}"]`);
+  if (!row) return;
+
   compLineas[i].descripcion = row.querySelector('.cl-desc').value;
 }
 
 function calcularLinea(i) {
-  const row = document.querySelectorAll('.linea-row')[i];
+  const row = document.querySelector(`.comp-linea-row[data-i="${i}"]`);
+  if (!row) return;
+
   const neto = parseFloat(row.querySelector('.cl-neto').value) || 0;
   const ivaPct = parseFloat(row.querySelector('.cl-iva').value) || 0;
   const ivaMonto = neto * ivaPct / 100;
   const total = neto + ivaMonto;
+
   row.querySelector('.cl-total').value = total.toFixed(2);
+
   compLineas[i].monto_neto = neto;
   compLineas[i].iva_porcentaje = ivaPct;
   compLineas[i].iva_monto = ivaMonto;
   compLineas[i].total = total;
+
   actualizarTotalesComp();
 }
 
@@ -282,8 +383,11 @@ function clearForm() {
     const el = document.getElementById('f-' + f); if (el) el.value = '';
   });
   document.getElementById('f-tipo').value = 'Ingreso';
-  const sel = document.getElementById('f-empresa-select'); if (sel) sel.value = '';
-  const selC = document.getElementById('f-cancelacion'); if (selC) selC.value = '';
+  const inp = document.getElementById('f-empresa-input');
+  if (inp) {
+    inp.value = '';
+    delete inp.dataset.id;
+  } const selC = document.getElementById('f-cancelacion'); if (selC) selC.value = '';
   compLineas = [];
 }
 
@@ -318,8 +422,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   if (!fecha || !detalle) { errEl.textContent = 'Fecha y detalle son obligatorios.'; return; }
   const lineasValidas = compLineas.filter(l => l.monto_neto > 0);
   if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
-
-  const empresaId = document.getElementById('f-empresa-select').value || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
   const concepto = document.getElementById('f-concepto')?.value || null;
   const cancelVal = document.getElementById('f-cancelacion')?.value || '';
@@ -1181,10 +1283,17 @@ function cuentaOptions(selectedId) {
 }
 
 // ── MODAL ASIENTO ─────────────────────────────────────────────────────────────
-function openModalAsiento(id) {
+async function openModalAsiento(id) {
+   if (!empresas.length) {
+    await loadEmpresas(); // 🔥 clave
+  }
+
   editAsientoId = id || null;
   document.getElementById('mas-title').textContent = editAsientoId ? 'Editar asiento' : 'Nuevo asiento';
   document.getElementById('mas-error').textContent = '';
+
+ 
+
 
   if (editAsientoId) {
     const a = asientos.find(x => x.id === editAsientoId);
@@ -1193,13 +1302,25 @@ function openModalAsiento(id) {
     document.getElementById('mas-doc').value = a.documento || '';
     document.getElementById('mas-obs').value = a.observaciones || '';
     const emp = empresas.find(e => e.id === a.empresa_id);
-    document.getElementById('mas-empresa-input').value = emp ? emp.nombre : ''; renderLineas(a.asiento_lineas || []);
+
+    setTimeout(() => {
+      const input = document.getElementById('mov-empresa-input');
+      const dropdown = document.getElementById('mov-empresa-dropdown');
+      setupEmpresaAutocomplete(input, dropdown);
+    }, 0);
+
+    renderLineas(a.asiento_lineas || []);
   } else {
     document.getElementById('mas-fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('mas-desc').value = '';
     document.getElementById('mas-doc').value = '';
     document.getElementById('mas-obs').value = '';
-    document.getElementById('mas-empresa').value = '';
+
+    setTimeout(() => {
+      const input = document.getElementById('mas-empresa-input');
+      if (input) input.value = '';
+    }, 0);
+
     renderLineas([
       { cuenta_id: '', debe: '', haber: '' },
       { cuenta_id: '', debe: '', haber: '' },
@@ -1207,6 +1328,12 @@ function openModalAsiento(id) {
   }
   populateEmpresasDatalist();
   document.getElementById('modal-asiento').classList.remove('hidden');
+
+  setTimeout(() => {
+    const input = document.getElementById('mas-empresa-input');
+    const dropdown = document.getElementById('empresa-dropdown');
+    setupEmpresaAutocomplete(input, dropdown);
+  }, 0);
 }
 
 function closeModalAsiento() { document.getElementById('modal-asiento').classList.add('hidden'); }
@@ -1229,19 +1356,114 @@ function populateEmpresasDatalist() {
 
 function renderLineas(lineas) {
   const cont = document.getElementById('mas-lineas');
+
   cont.innerHTML = lineas.map((l, i) => `
-    <div class="linea-row" data-i="${i}">
-      <select class="linea-cuenta" style="flex:2">
-        <option value="">Seleccionar cuenta...</option>
-        ${cuentaOptions(l.cuenta_id)}
-      </select>
-      <input type="number" class="linea-debe" placeholder="Debe" value="${l.debe || ''}" step="0.01" style="flex:1;min-width:90px">
-      <input type="number" class="linea-haber" placeholder="Haber" value="${l.haber || ''}" step="0.01" style="flex:1;min-width:90px">
-      <button class="btn btn-sm btn-del" onclick="eliminarLinea(${i})" style="flex-shrink:0">✕</button>
+    <div class="linea-row" data-i="${i}" style="display:flex;gap:8px;margin-bottom:6px">
+
+      <div style="position:relative;flex:2">
+        <input 
+          type="text" 
+          class="linea-cuenta-input" 
+          placeholder="Buscar cuenta..." 
+          value="${l.cuenta_nombre || ''}"
+          autocomplete="off"
+          style="width:100%"
+        >
+        <div class="cuenta-dropdown dropdown"></div>
+      </div>
+
+      <input 
+        type="number" 
+        class="linea-debe" 
+        placeholder="Debe" 
+        value="${l.debe || ''}" 
+        step="0.01"
+        style="flex:1"
+      >
+
+      <input 
+        type="number" 
+        class="linea-haber" 
+        placeholder="Haber" 
+        value="${l.haber || ''}" 
+        step="0.01"
+        style="flex:1"
+      >
+
+      <button onclick="eliminarLinea(${i})">✕</button>
     </div>
   `).join('');
-  cont.querySelectorAll('input').forEach(i => i.addEventListener('input', updateTotales));
+
+  // 🔥 activar autocomplete en cada fila
+  cont.querySelectorAll('.linea-row').forEach(row => {
+    setupCuentaAutocomplete(row);
+  });
+
+  // recalcular totales
+  cont.querySelectorAll('input').forEach(i =>
+    i.addEventListener('input', updateTotales)
+  );
+
   updateTotales();
+}
+
+function setupCuentaAutocomplete(row) {
+  const input = row.querySelector('.linea-cuenta-input');
+  const dropdown = row.querySelector('.cuenta-dropdown');
+
+  input.addEventListener('input', () => {
+    const val = input.value.toLowerCase();
+
+    const results = cuentas.filter(c =>
+      (`${c.codigo} ${c.nombre}`).toLowerCase().includes(val)
+    );
+
+    dropdown.innerHTML = results.slice(0, 5).map(c =>
+      `<div class="dropdown-item" data-id="${c.id}">
+        ${c.codigo} - ${c.nombre}
+      </div>`
+    ).join('');
+
+    dropdown.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        input.value = item.textContent;
+        input.dataset.id = item.dataset.id;
+        dropdown.innerHTML = '';
+        updateTotales();
+      });
+    });
+  });
+}
+
+function setupEmpresaAutocomplete(input, dropdown) {
+  if (!input || !dropdown) return;
+
+  input.addEventListener('input', () => {
+    const val = input.value.toLowerCase().trim();
+
+    if (!val) {
+      dropdown.innerHTML = '';
+      return;
+    }
+
+    const results = empresas.filter(e =>
+      (e.nombre || '').toLowerCase().includes(val)
+    );
+
+    dropdown.innerHTML = results.slice(0, 8).map(e =>
+      `<div class="dropdown-item" data-id="${e.id}">
+        ${e.nombre}
+      </div>`
+    ).join('');
+
+    dropdown.querySelectorAll('.dropdown-item').forEach(item => {
+      item.onclick = () => {
+        input.value = item.textContent;
+        input.dataset.id = item.dataset.id;
+        dropdown.innerHTML = '';
+      };
+    });
+  });
 }
 
 function eliminarLinea(i) {
@@ -1250,14 +1472,20 @@ function eliminarLinea(i) {
   lineas.splice(i, 1);
   renderLineas(lineas);
 }
+
 function getLineasActuales() {
   const cont = document.getElementById('mas-lineas');
-  return [...cont.querySelectorAll('.linea-row')].map(row => ({
-    cuenta_id: row.querySelector('.linea-cuenta')?.value || '',
-    cuenta_nombre: row.querySelector('.linea-cuenta')?.selectedOptions[0]?.text || '',
-    debe: parseFloat(row.querySelector('.linea-debe')?.value) || 0,
-    haber: parseFloat(row.querySelector('.linea-haber')?.value) || 0,
-  }));
+
+  return [...cont.querySelectorAll('.linea-row')].map(row => {
+    const cuentaInput = row.querySelector('.linea-cuenta-input');
+
+    return {
+      cuenta_id: cuentaInput?.dataset.id || '',
+      cuenta_nombre: cuentaInput?.value || '',
+      debe: parseFloat(row.querySelector('.linea-debe')?.value) || 0,
+      haber: parseFloat(row.querySelector('.linea-haber')?.value) || 0,
+    };
+  });
 }
 
 function updateTotales() {

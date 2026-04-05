@@ -279,67 +279,82 @@
     </main>
   </div>
 
-<!-- MODAL COMPROBANTE -->
-<div class="modal-overlay hidden" id="modal-overlay">
-  <div class="modal" style="max-width:760px">
-    <div class="modal-header">
-      <h2 id="modal-title">Nuevo comprobante</h2>
-      <button class="modal-close" id="modal-close">✕</button>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>Fecha *</label><input type="date" id="f-fecha"></div>
-      <div class="form-group">
-        <label>Tipo *</label>
-        <select id="f-tipo">
-          <option value="Ingreso">Ingreso</option>
-          <option value="Egreso">Egreso</option>
-          <option value="Cobro">Cobro</option>
-          <option value="Pago">Pago</option>
-        </select>
+  <!-- MODAL COMPROBANTE -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal" style="max-width:760px">
+      <div class="modal-header">
+        <h2 id="modal-title">Nuevo comprobante</h2>
+        <button class="modal-close" id="modal-close">✕</button>
       </div>
-      <div class="form-group full">
-        <label>Concepto contable</label>
-        <select id="f-concepto"><option value="">Sin impacto en cuenta corriente</option></select>
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha *</label><input type="date" id="f-fecha"></div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="f-tipo">
+            <option value="Ingreso">Ingreso</option>
+            <option value="Egreso">Egreso</option>
+            <option value="Cobro">Cobro</option>
+            <option value="Pago">Pago</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Concepto contable</label>
+          <select id="f-concepto">
+            <option value="">Sin impacto en cuenta corriente</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Detalle *</label><input type="text" id="f-detalle"
+            placeholder="Descripción del comprobante"></div>
+        <div class="form-group full"><label>Empresa / Razón social</label>
+          <div class="form-group empresa" style="position:relative;">
+            <input type="text" id="mov-empresa-input" placeholder="Buscar empresa..." autocomplete="off">
+            <div id="mov-empresa-dropdown" class="dropdown"></div>
+          </div>
+          <div id="f-empresa-dropdown"></div>
+        </div>
+        <div class="form-group"><label>Comprobante / Documento</label><input type="text" id="f-doc"
+            placeholder="Factura A 0001-00000001"></div>
+        <div class="form-group"><label>Observaciones</label><input type="text" id="f-obs"></div>
       </div>
-      <div class="form-group full"><label>Detalle *</label><input type="text" id="f-detalle" placeholder="Descripción del comprobante"></div>
-      <div class="form-group full"><label>Empresa / Razón social</label><select id="f-empresa-select"></select></div>
-      <div class="form-group"><label>Comprobante / Documento</label><input type="text" id="f-doc" placeholder="Factura A 0001-00000001"></div>
-      <div class="form-group"><label>Observaciones</label><input type="text" id="f-obs"></div>
-    </div>
 
-    <div style="padding:0 1.5rem 0.5rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <label style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Líneas del comprobante</label>
-        <button class="btn btn-sm" id="comp-add-linea">+ Agregar línea</button>
+      <div style="padding:0 1.5rem 0.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label
+            style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Líneas
+            del comprobante</label>
+          <button class="btn btn-sm" id="comp-add-linea">+ Agregar línea</button>
+        </div>
+        <div
+          style="display:flex;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
+          <span style="flex:2">Cuenta</span>
+          <span style="flex:1.5;min-width:100px">Descripción</span>
+          <span style="flex:1;min-width:80px">Neto</span>
+          <span style="flex:0.6;min-width:60px">IVA %</span>
+          <span style="flex:1;min-width:80px">Total</span>
+          <span style="width:36px"></span>
+        </div>
+        <div id="comp-lineas" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div
+          style="display:flex;justify-content:flex-end;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"
+          id="comp-total"></div>
       </div>
-      <div style="display:flex;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
-        <span style="flex:2">Cuenta</span>
-        <span style="flex:1.5;min-width:100px">Descripción</span>
-        <span style="flex:1;min-width:80px">Neto</span>
-        <span style="flex:0.6;min-width:60px">IVA %</span>
-        <span style="flex:1;min-width:80px">Total</span>
-        <span style="width:36px"></span>
-      </div>
-      <div id="comp-lineas" style="display:flex;flex-direction:column;gap:6px"></div>
-      <div style="display:flex;justify-content:flex-end;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)" id="comp-total"></div>
-    </div>
 
-    <div style="padding:0 1.5rem 1rem">
-      <div class="form-group">
-        <label>Cancelar con cuenta (opcional)</label>
-        <select id="f-cancelacion">
-          <option value="">Queda pendiente (cta. a pagar/cobrar)</option>
-        </select>
+      <div style="padding:0 1.5rem 1rem">
+        <div class="form-group">
+          <label>Cancelar con cuenta (opcional)</label>
+          <select id="f-cancelacion">
+            <option value="">Queda pendiente (cta. a pagar/cobrar)</option>
+          </select>
+        </div>
       </div>
-    </div>
 
-    <div class="modal-footer">
-      <button class="btn btn-ghost" id="btn-cancelar">Cancelar</button>
-      <button class="btn btn-primary" id="btn-guardar">Guardar comprobante</button>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="btn-guardar">Guardar comprobante</button>
+      </div>
+      <p id="form-error" class="error-msg"></p>
     </div>
-    <p id="form-error" class="error-msg"></p>
   </div>
-</div>
 
   <!-- MODAL EMPRESA -->
   <div class="modal-overlay hidden" id="modal-empresa">
@@ -368,27 +383,35 @@
           <div class="form-group"><label>Email</label><input type="email" id="me-email"></div>
           <div class="form-group"><label>Teléfono</label><input type="text" id="me-tel"></div>
           <div class="form-group full"><label>Dirección</label><input type="text" id="me-dir"></div>
-          <div class="form-group full"><label>Observaciones</label><textarea id="me-obs" rows="2" style="resize:vertical"></textarea></div>
+          <div class="form-group full"><label>Observaciones</label><textarea id="me-obs" rows="2"
+              style="resize:vertical"></textarea></div>
         </div>
       </div>
 
       <!-- MODO CREACIÓN MÚLTIPLE: tabla de filas -->
       <div id="me-form-multi" style="padding:0 1.5rem 1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <label style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Empresas a agregar</label>
+          <label
+            style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Empresas
+            a agregar</label>
           <div style="display:flex;gap:6px;align-items:center">
-            <label class="btn btn-sm" style="cursor:pointer" title="Importar CSV con columnas: nombre, cuit, condicion_iva, email, telefono, observaciones">
+            <label class="btn btn-sm" style="cursor:pointer"
+              title="Importar CSV con columnas: nombre, cuit, condicion_iva, email, telefono, observaciones">
               ↑ Importar CSV
               <input type="file" id="me-csv-input" accept=".csv" style="display:none">
             </label>
             <button class="btn btn-sm" id="me-add-fila">+ Agregar fila</button>
           </div>
         </div>
-        <div id="me-csv-hint" style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:6px 10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
-          Columnas esperadas: <span style="font-family:var(--mono)">nombre, cuit, condicion_iva, email, telefono, observaciones</span> — solo <span style="font-family:var(--mono)">nombre</span> es obligatorio.
+        <div id="me-csv-hint"
+          style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:6px 10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+          Columnas esperadas: <span style="font-family:var(--mono)">nombre, cuit, condicion_iva, email, telefono,
+            observaciones</span> — solo <span style="font-family:var(--mono)">nombre</span> es obligatorio.
         </div>
-        <div style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.5fr 1fr 1.5fr 28px;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
-          <span>Nombre *</span><span>CUIT</span><span>Cond. IVA</span><span>Email</span><span>Teléfono</span><span>Observaciones</span><span></span>
+        <div
+          style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.5fr 1fr 1.5fr 28px;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
+          <span>Nombre *</span><span>CUIT</span><span>Cond.
+            IVA</span><span>Email</span><span>Teléfono</span><span>Observaciones</span><span></span>
         </div>
         <div id="me-filas" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
@@ -638,7 +661,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.local.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/app.js"></script>
 </body>
 
