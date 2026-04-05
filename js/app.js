@@ -14,10 +14,35 @@ async function checkSession() {
   if (session) showApp(session.user); else showLogin();
 }
 
-function showSuccessBanner(msg) {
+function showSuccessBanner(msg) { showToast(msg, 'success'); }
+
+function showToast(msg, type = 'success') {
+  const colors = {
+    success: { bg: 'var(--green-bg)', color: 'var(--green)', border: '#a8d5b5' },
+    error: { bg: '#fff1f0', color: '#c0392b', border: '#f5c6c6' },
+    info: { bg: 'var(--surface)', color: 'var(--text)', border: 'var(--border)' },
+  };
+  const c = colors[type] || colors.info;
+  const existing = document.querySelectorAll('.gf-toast');
+  const topOffset = 1 + existing.length * 3.5;
   const b = document.createElement('div');
-  b.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:var(--green-bg);color:var(--green);border:1px solid #a8d5b5;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:500;z-index:9999;box-shadow:0 2px 12px rgba(0,0,0,0.1)';
-  b.textContent = msg; document.body.appendChild(b); setTimeout(() => b.remove(), 5000);
+  b.className = 'gf-toast';
+  b.style.cssText = `position:fixed;top:${topOffset}rem;left:50%;transform:translateX(-50%) translateY(-8px);
+    background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:8px;
+    padding:10px 20px;font-size:13px;font-weight:500;z-index:9999;
+    box-shadow:0 4px 16px rgba(0,0,0,0.12);opacity:0;
+    transition:opacity 0.2s ease, transform 0.2s ease;white-space:nowrap`;
+  b.textContent = msg;
+  document.body.appendChild(b);
+  requestAnimationFrame(() => {
+    b.style.opacity = '1';
+    b.style.transform = 'translateX(-50%) translateY(0)';
+  });
+  setTimeout(() => {
+    b.style.opacity = '0';
+    b.style.transform = 'translateX(-50%) translateY(-8px)';
+    setTimeout(() => b.remove(), 200);
+  }, 3500);
 }
 
 function showLogin() {
@@ -30,8 +55,8 @@ function showApp(user) {
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-email-display').textContent = user.email;
   loadAll().then(async () => {
-    await initCuentasPredefinidas();
-    await agregarCuentasIVASiFaltan();
+    // await initCuentasPredefinidas();
+    // await agregarCuentasIVASiFaltan();
   });
 }
 
@@ -119,7 +144,7 @@ function populateEmpresaSelect() {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">Sin empresa</option>';
-  empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — '+e.cuit : ''}</option>`; });
+  empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — ' + e.cuit : ''}</option>`; });
   sel.value = cur;
 }
 
@@ -171,7 +196,7 @@ function openModal(id) {
     document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('f-tipo').value = 'Ingreso';
     actualizarConceptoSegunTipo();
-    renderCompLineas([{ cuenta_id:'', cuenta_nombre:'', descripcion:'', monto_neto:0, iva_porcentaje:21, iva_monto:0, total:0 }]);
+    renderCompLineas([{ cuenta_id: '', cuenta_nombre: '', descripcion: '', monto_neto: 0, iva_porcentaje: 21, iva_monto: 0, total: 0 }]);
   }
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
@@ -196,13 +221,13 @@ function renderCompLineas(lineas) {
       <select class="cl-cuenta" style="flex:2" onchange="updateLineaCuenta(${i}, this)">
         <option value="">Seleccionar cuenta...</option>
         ${cuentas.filter(c => c.tipo === 'Ingreso' || c.tipo === 'Egreso').map(c =>
-          `<option value="${c.id}|${c.nombre}" ${l.cuenta_id === c.id ? 'selected' : ''}>${c.codigo} — ${c.nombre}</option>`
-        ).join('')}
+    `<option value="${c.id}|${c.nombre}" ${l.cuenta_id === c.id ? 'selected' : ''}>${c.codigo} — ${c.nombre}</option>`
+  ).join('')}
       </select>
-      <input type="text" class="cl-desc" placeholder="Descripción" value="${l.descripcion||''}" style="flex:1.5;min-width:100px" oninput="updateLinea(${i})">
-      <input type="number" class="cl-neto" placeholder="Neto" value="${l.monto_neto||''}" step="0.01" style="flex:1;min-width:80px" oninput="calcularLinea(${i})">
-      <input type="number" class="cl-iva" placeholder="IVA%" value="${l.iva_porcentaje||0}" step="0.01" style="flex:0.6;min-width:60px" oninput="calcularLinea(${i})">
-      <input type="number" class="cl-total" placeholder="Total" value="${l.total||''}" step="0.01" style="flex:1;min-width:80px" readonly style="background:var(--bg)">
+      <input type="text" class="cl-desc" placeholder="Descripción" value="${l.descripcion || ''}" style="flex:1.5;min-width:100px" oninput="updateLinea(${i})">
+      <input type="number" class="cl-neto" placeholder="Neto" value="${l.monto_neto || ''}" step="0.01" style="flex:1;min-width:80px" oninput="calcularLinea(${i})">
+      <input type="number" class="cl-iva" placeholder="IVA%" value="${l.iva_porcentaje || 0}" step="0.01" style="flex:0.6;min-width:60px" oninput="calcularLinea(${i})">
+      <input type="number" class="cl-total" placeholder="Total" value="${l.total || ''}" step="0.01" style="flex:1;min-width:80px" readonly style="background:var(--bg)">
       <button class="btn btn-sm btn-del" onclick="eliminarCompLinea(${i})" style="flex-shrink:0">✕</button>
     </div>
   `).join('');
@@ -241,9 +266,9 @@ function eliminarCompLinea(i) {
 }
 
 function actualizarTotalesComp() {
-  const totalNeto = compLineas.reduce((s,l) => s+(l.monto_neto||0), 0);
-  const totalIva  = compLineas.reduce((s,l) => s+(l.iva_monto||0), 0);
-  const total     = compLineas.reduce((s,l) => s+(l.total||0), 0);
+  const totalNeto = compLineas.reduce((s, l) => s + (l.monto_neto || 0), 0);
+  const totalIva = compLineas.reduce((s, l) => s + (l.iva_monto || 0), 0);
+  const total = compLineas.reduce((s, l) => s + (l.total || 0), 0);
   const el = document.getElementById('comp-total');
   if (el) el.innerHTML = `
     <span class="muted-text">Neto: <strong>$ ${fmt(totalNeto)}</strong></span>
@@ -253,21 +278,21 @@ function actualizarTotalesComp() {
 }
 
 function clearForm() {
-  ['fecha','detalle','doc','obs'].forEach(f => {
-    const el = document.getElementById('f-'+f); if(el) el.value = '';
+  ['fecha', 'detalle', 'doc', 'obs'].forEach(f => {
+    const el = document.getElementById('f-' + f); if (el) el.value = '';
   });
   document.getElementById('f-tipo').value = 'Ingreso';
-  const sel = document.getElementById('f-empresa-select'); if(sel) sel.value = '';
-  const selC = document.getElementById('f-cancelacion'); if(selC) selC.value = '';
+  const sel = document.getElementById('f-empresa-select'); if (sel) sel.value = '';
+  const selC = document.getElementById('f-cancelacion'); if (selC) selC.value = '';
   compLineas = [];
 }
 
 function fillForm(m) {
-  document.getElementById('f-fecha').value   = m.fecha || '';
-  document.getElementById('f-tipo').value    = m.tipo || 'Ingreso';
+  document.getElementById('f-fecha').value = m.fecha || '';
+  document.getElementById('f-tipo').value = m.tipo || 'Ingreso';
   document.getElementById('f-detalle').value = m.detalle || '';
-  document.getElementById('f-doc').value     = m.documento || '';
-  document.getElementById('f-obs').value     = m.observaciones || '';
+  document.getElementById('f-doc').value = m.documento || '';
+  document.getElementById('f-obs').value = m.observaciones || '';
   const sel = document.getElementById('f-empresa-select');
   if (sel) sel.value = m.empresa_id || '';
   actualizarConceptoSegunTipo();
@@ -280,29 +305,29 @@ document.getElementById('btn-cancelar').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target.id === 'modal-overlay') closeModal(); });
 document.getElementById('f-tipo').addEventListener('change', actualizarConceptoSegunTipo);
 document.getElementById('comp-add-linea')?.addEventListener('click', () => {
-  compLineas.push({ cuenta_id:'', cuenta_nombre:'', descripcion:'', monto_neto:0, iva_porcentaje:21, iva_monto:0, total:0 });
+  compLineas.push({ cuenta_id: '', cuenta_nombre: '', descripcion: '', monto_neto: 0, iva_porcentaje: 21, iva_monto: 0, total: 0 });
   renderCompLineas(compLineas);
 });
 
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-  const fecha   = document.getElementById('f-fecha').value;
+  const fecha = document.getElementById('f-fecha').value;
   const detalle = document.getElementById('f-detalle').value.trim();
-  const tipo    = document.getElementById('f-tipo').value;
+  const tipo = document.getElementById('f-tipo').value;
   if (!fecha || !detalle) { errEl.textContent = 'Fecha y detalle son obligatorios.'; return; }
   const lineasValidas = compLineas.filter(l => l.monto_neto > 0);
   if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
 
-  const empresaId  = document.getElementById('f-empresa-select').value || null;
+  const empresaId = document.getElementById('f-empresa-select').value || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
-  const concepto   = document.getElementById('f-concepto')?.value || null;
-  const cancelVal  = document.getElementById('f-cancelacion')?.value || '';
+  const concepto = document.getElementById('f-concepto')?.value || null;
+  const cancelVal = document.getElementById('f-cancelacion')?.value || '';
   const [cancelId, cancelNombre] = cancelVal ? cancelVal.split('|') : [null, null];
 
-  const totalNeto = lineasValidas.reduce((s,l) => s+(l.monto_neto||0), 0);
-  const totalIva  = lineasValidas.reduce((s,l) => s+(l.iva_monto||0), 0);
-  const total     = lineasValidas.reduce((s,l) => s+(l.total||0), 0);
+  const totalNeto = lineasValidas.reduce((s, l) => s + (l.monto_neto || 0), 0);
+  const totalIva = lineasValidas.reduce((s, l) => s + (l.iva_monto || 0), 0);
+  const total = lineasValidas.reduce((s, l) => s + (l.total || 0), 0);
 
   try {
     const { data: { user } } = await sb.auth.getUser();
@@ -342,7 +367,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     await loadMovimientos();
     await loadCuentasCorrientes();
     showSuccessBanner('✓ Comprobante registrado correctamente.');
-  } catch(e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+  } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
 
 document.getElementById('btn-guardar').addEventListener('click', async () => {
@@ -405,18 +430,18 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 
 function actualizarConceptoSegunTipo() {
   const tipo = document.getElementById('f-tipo')?.value;
-  const sel  = document.getElementById('f-concepto');
+  const sel = document.getElementById('f-concepto');
   if (!sel) return;
 
   const opciones = {
     Ingreso: [
-      { value: 'factura_emitida',      label: 'Venta / Factura emitida (cliente queda debiendo)' },
-      { value: 'nota_debito_emitida',  label: 'Nota de débito emitida (aumenta deuda del cliente)' },
+      { value: 'factura_emitida', label: 'Venta / Factura emitida (cliente queda debiendo)' },
+      { value: 'nota_debito_emitida', label: 'Nota de débito emitida (aumenta deuda del cliente)' },
       { value: 'nota_credito_emitida', label: 'Nota de crédito emitida (reduce ingreso)' },
     ],
     Egreso: [
-      { value: 'factura_recibida',      label: 'Compra / Factura recibida (quedamos debiendo)' },
-      { value: 'nota_debito_recibida',  label: 'Nota de débito recibida (aumenta nuestra deuda)' },
+      { value: 'factura_recibida', label: 'Compra / Factura recibida (quedamos debiendo)' },
+      { value: 'nota_debito_recibida', label: 'Nota de débito recibida (aumenta nuestra deuda)' },
       { value: 'nota_credito_recibida', label: 'Nota de crédito recibida (reduce egreso)' },
     ],
     Cobro: [
@@ -433,7 +458,7 @@ function actualizarConceptoSegunTipo() {
 
   // Para Cobro y Pago preseleccionar automáticamente
   if (tipo === 'Cobro') sel.value = 'cobro_efectivo';
-  if (tipo === 'Pago')  sel.value = 'pago_realizado';
+  if (tipo === 'Pago') sel.value = 'pago_realizado';
 
   // Mostrar/ocultar sección de líneas según tipo
   const secLineas = document.getElementById('comp-lineas')?.closest('div[style]');
@@ -444,19 +469,125 @@ function actualizarConceptoSegunTipo() {
 document.getElementById('f-tipo').addEventListener('change', actualizarConceptoSegunTipo);
 
 // ── MODAL EMPRESA ─────────────────────────────────────────────────────────────
+const IVA_OPTS = ['', 'Responsable Inscripto', 'Monotributista', 'Exento', 'Consumidor Final'];
+
+function renderEmpresaFilas(filas) {
+  const cont = document.getElementById('me-filas');
+  cont.innerHTML = filas.map((f, i) => `
+    <div class="linea-row" data-i="${i}" style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.5fr 1fr 1.5fr 28px;gap:6px;align-items:center">
+      <input type="text" class="me-f-nombre" placeholder="Nombre / Razón social *" value="${f.nombre || ''}" style="min-width:0">
+      <input type="text" class="me-f-cuit" placeholder="XX-XXXXXXXX-X" value="${f.cuit || ''}" style="min-width:0">
+      <select class="me-f-iva" style="min-width:0">
+        ${IVA_OPTS.map(o => `<option value="${o}" ${f.iva === o ? 'selected' : ''}>${o || '—'}</option>`).join('')}
+      </select>
+      <input type="email" class="me-f-email" placeholder="email@..." value="${f.email || ''}" style="min-width:0">
+      <input type="text" class="me-f-tel" placeholder="Tel." value="${f.tel || ''}" style="min-width:0">
+      <input type="text" class="me-f-obs" placeholder="Observaciones" value="${f.obs || ''}" style="min-width:0">
+      <button class="btn btn-sm btn-del" onclick="eliminarFilaEmpresa(${i})" ${filas.length <= 1 ? 'disabled' : ''}>✕</button>
+    </div>
+  `).join('');
+}
+
+function getEmpresaFilas() {
+  return [...document.querySelectorAll('#me-filas .linea-row')].map(row => ({
+    nombre: row.querySelector('.me-f-nombre').value.trim(),
+    cuit: row.querySelector('.me-f-cuit').value.trim(),
+    iva: row.querySelector('.me-f-iva').value,
+    email: row.querySelector('.me-f-email').value.trim(),
+    tel: row.querySelector('.me-f-tel').value.trim(),
+    obs: row.querySelector('.me-f-obs').value.trim(),
+  }));
+}
+
+function eliminarFilaEmpresa(i) {
+  const filas = getEmpresaFilas();
+  if (filas.length <= 1) return;
+  filas.splice(i, 1);
+  renderEmpresaFilas(filas);
+}
+
 function openModalEmpresa(id) {
   const emp = id ? empresas.find(e => e.id === id) : null;
-  document.getElementById('me-title').textContent = emp ? 'Editar empresa' : 'Nueva empresa';
+  const esEdicion = !!emp;
+  document.getElementById('me-title').textContent = esEdicion ? 'Editar empresa' : 'Nueva empresa';
   document.getElementById('me-error').textContent = '';
   document.getElementById('me-id').value = emp ? emp.id : '';
-  document.getElementById('me-nombre').value = emp ? emp.nombre : '';
-  document.getElementById('me-cuit').value = emp ? emp.cuit || '' : '';
-  document.getElementById('me-iva').value = emp ? emp.condicion_iva || '' : '';
-  document.getElementById('me-email').value = emp ? emp.email || '' : '';
-  document.getElementById('me-tel').value = emp ? emp.telefono || '' : '';
-  document.getElementById('me-dir').value = emp ? emp.direccion || '' : '';
+
+  // Mostrar el modo correcto
+  document.getElementById('me-form-single').style.display = esEdicion ? '' : 'none';
+  document.getElementById('me-form-multi').style.display = esEdicion ? 'none' : '';
+  document.getElementById('me-guardar').textContent = esEdicion ? 'Guardar empresa' : 'Guardar empresas';
+
+  if (esEdicion) {
+    document.getElementById('me-nombre').value = emp.nombre || '';
+    document.getElementById('me-cuit').value = emp.cuit || '';
+    document.getElementById('me-iva').value = emp.condicion_iva || '';
+    document.getElementById('me-email').value = emp.email || '';
+    document.getElementById('me-tel').value = emp.telefono || '';
+    document.getElementById('me-dir').value = emp.direccion || '';
+    document.getElementById('me-obs').value = emp.observaciones || '';
+  } else {
+    renderEmpresaFilas([{ nombre: '', cuit: '', iva: '', email: '', tel: '' }]);
+  }
   document.getElementById('modal-empresa').classList.remove('hidden');
 }
+
+document.getElementById('me-add-fila').addEventListener('click', () => {
+  const filas = getEmpresaFilas();
+  filas.push({ nombre: '', cuit: '', iva: '', email: '', tel: '', obs: '' });
+  renderEmpresaFilas(filas);
+  const rows = document.querySelectorAll('#me-filas .linea-row');
+  rows[rows.length - 1]?.querySelector('.me-f-nombre')?.focus();
+});
+
+document.getElementById('me-csv-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const lines = ev.target.result.split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) return;
+
+    // Detectar encabezado
+    const COLS = ['nombre', 'cuit', 'condicion_iva', 'email', 'telefono', 'observaciones'];
+    const firstLow = lines[0].toLowerCase().replace(/\s/g, '');
+    const tieneHeader = COLS.some(c => firstLow.includes(c));
+    const dataLines = tieneHeader ? lines.slice(1) : lines;
+
+    // Mapear columnas si hay header
+    let colIdx = { nombre: 0, cuit: 1, condicion_iva: 2, email: 3, telefono: 4, observaciones: 5 };
+    if (tieneHeader) {
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s/g, '_'));
+      colIdx = { nombre: -1, cuit: -1, condicion_iva: -1, email: -1, telefono: -1, observaciones: -1 };
+      headers.forEach((h, i) => { if (colIdx.hasOwnProperty(h)) colIdx[h] = i; });
+    }
+
+    const filas = dataLines.map(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      const get = (key) => colIdx[key] >= 0 ? (cols[colIdx[key]] || '') : '';
+      return {
+        nombre: get('nombre'),
+        cuit: get('cuit'),
+        iva: get('condicion_iva'),
+        email: get('email'),
+        tel: get('telefono'),
+        obs: get('observaciones'),
+      };
+    }).filter(f => f.nombre);
+
+    if (!filas.length) {
+      document.getElementById('me-error').textContent = 'El CSV no contiene filas válidas (ninguna tiene nombre).';
+      return;
+    }
+
+    // Mostrar hint de columnas la primera vez
+    document.getElementById('me-csv-hint').style.display = 'block';
+    renderEmpresaFilas(filas);
+    showToast(`↑ ${filas.length} fila${filas.length > 1 ? 's' : ''} importada${filas.length > 1 ? 's' : ''} del CSV.`, 'info');
+    e.target.value = ''; // reset input para permitir reimportar el mismo archivo
+  };
+  reader.readAsText(file);
+});
 
 function closeModalEmpresa() { document.getElementById('modal-empresa').classList.add('hidden'); }
 document.getElementById('me-close').addEventListener('click', closeModalEmpresa);
@@ -465,27 +596,54 @@ document.getElementById('me-cancelar').addEventListener('click', closeModalEmpre
 document.getElementById('me-guardar').addEventListener('click', async () => {
   const err = document.getElementById('me-error');
   err.textContent = '';
-  const nombre = document.getElementById('me-nombre').value.trim();
-  if (!nombre) { err.textContent = 'El nombre es obligatorio.'; return; }
   const id = document.getElementById('me-id').value;
-  const data = {
-    nombre, cuit: document.getElementById('me-cuit').value || null,
-    condicion_iva: document.getElementById('me-iva').value || null,
-    email: document.getElementById('me-email').value || null,
-    telefono: document.getElementById('me-tel').value || null,
-    direccion: document.getElementById('me-dir').value || null,
-  };
+  const { data: { user } } = await sb.auth.getUser();
+
   try {
-    if (id) { await sb.from('empresas').update(data).eq('id', id); }
-    else { const { data: { user } } = await sb.auth.getUser(); await sb.from('empresas').insert({ ...data, user_id: user.id }); }
-    closeModalEmpresa(); await loadEmpresas(); renderEmpresas();
+    if (id) {
+      // Modo edición — igual que antes
+      const nombre = document.getElementById('me-nombre').value.trim();
+      if (!nombre) { err.textContent = 'El nombre es obligatorio.'; return; }
+      const data = {
+        nombre,
+        cuit: document.getElementById('me-cuit').value || null,
+        condicion_iva: document.getElementById('me-iva').value || null,
+        email: document.getElementById('me-email').value || null,
+        telefono: document.getElementById('me-tel').value || null,
+        direccion: document.getElementById('me-dir').value || null,
+        observaciones: document.getElementById('me-obs').value || null,
+      };
+      await sb.from('empresas').update(data).eq('id', id);
+      showToast('✓ Empresa actualizada.');
+    } else {
+      // Modo creación múltiple
+      const filas = getEmpresaFilas();
+      const invalidas = filas.filter(f => !f.nombre);
+      if (invalidas.length) { err.textContent = 'Todas las filas deben tener al menos un nombre.'; return; }
+      const rows = filas.map(f => ({
+        nombre: f.nombre,
+        cuit: f.cuit || null,
+        condicion_iva: f.iva || null,
+        email: f.email || null,
+        telefono: f.tel || null,
+        observaciones: f.obs || null,
+        user_id: user.id,
+      }));
+      await sb.from('empresas').insert(rows);
+      showToast(rows.length === 1 ? '✓ Empresa creada.' : `✓ ${rows.length} empresas creadas.`);
+    }
+    closeModalEmpresa();
+    await loadEmpresas();
+    renderEmpresas();
   } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
 
 async function eliminarEmpresa(id) {
-  if (!confirm('¿Eliminar esta empresa?')) return;
+  const ok = await confirmarEliminar('¿Eliminar esta empresa? Esta acción no se puede deshacer.');
+  if (!ok) return;
   await sb.from('empresas').delete().eq('id', id);
   await loadEmpresas(); renderEmpresas();
+  showToast('✓ Empresa eliminada.', 'info');
 }
 
 // ── MODAL CUENTA ──────────────────────────────────────────────────────────────
@@ -507,22 +665,114 @@ document.getElementById('mc-cancelar').addEventListener('click', closeModalCuent
 document.getElementById('mc-guardar').addEventListener('click', async () => {
   const err = document.getElementById('mc-error');
   err.textContent = '';
+
   const codigo = document.getElementById('mc-codigo').value.trim();
   const nombre = document.getElementById('mc-nombre').value.trim();
-  if (!codigo || !nombre) { err.textContent = 'Código y nombre son obligatorios.'; return; }
+
+  if (!codigo || !nombre) {
+    err.textContent = 'Código y nombre son obligatorios.';
+    return;
+  }
+
   const id = document.getElementById('mc-id').value;
-  const data = { codigo, nombre, tipo: document.getElementById('mc-tipo').value };
+
+  const data = {
+    codigo,
+    nombre,
+    tipo: document.getElementById('mc-tipo').value
+  };
+
   try {
-    if (id) { await sb.from('cuentas').update(data).eq('id', id); }
-    else { const { data: { user } } = await sb.auth.getUser(); await sb.from('cuentas').insert({ ...data, user_id: user.id }); }
-    closeModalCuenta(); await loadCuentas(); renderCuentas();
-  } catch (e) { err.textContent = 'Error: ' + e.message; }
+    if (id) {
+      await sb.from('cuentas').update(data).eq('id', id);
+
+    } else {
+      const { data: { user } } = await sb.auth.getUser();
+
+      // 🔍 Buscar duplicado
+      const { data: existente } = await sb
+        .from('cuentas')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('codigo', data.codigo)
+        .maybeSingle();
+
+      if (existente) {
+        const confirmar = await mostrarConfirmacion(
+          'Ya existe una cuenta con ese código.\n¿Desea reemplazarla?'
+        );
+
+        if (!confirmar) return;
+
+        // 🔁 Reemplazar
+        const { error } = await sb
+          .from('cuentas')
+          .update({
+            nombre: data.nombre,
+            tipo: data.tipo
+          })
+          .eq('id', existente.id);
+
+        if (error) throw error;
+
+      } else {
+        // 🆕 Insert normal
+        const { error } = await sb
+          .from('cuentas')
+          .insert({
+            ...data,
+            user_id: user.id,
+            origen: 'usuario'
+          });
+
+        if (error) throw error;
+      }
+    }
+
+    closeModalCuenta();
+    await loadCuentas();
+    renderCuentas();
+    showToast(id ? '✓ Cuenta actualizada.' : '✓ Cuenta creada.');
+
+  } catch (e) {
+    err.textContent = 'Error: ' + e.message;
+  }
 });
 
+function mostrarConfirmacion(mensaje) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modal-confirm');
+    const texto = document.getElementById('mc-texto');
+    const btnOk = document.getElementById('mc-confirmar');
+    const btnCancel = document.getElementById('mc-cancelar-confirm');
+
+    texto.innerHTML = mensaje;
+    modal.classList.remove('hidden');
+
+    const limpiar = () => {
+      modal.classList.add('hidden');
+      btnOk.onclick = null;
+      btnCancel.onclick = null;
+    };
+
+    btnOk.onclick = () => {
+      limpiar();
+      resolve(true);
+    };
+
+    btnCancel.onclick = () => {
+      limpiar();
+      resolve(false);
+    };
+  });
+}
+
 async function eliminarCuenta(id) {
-  if (!confirm('¿Eliminar esta cuenta?')) return;
+  const ok = await confirmarEliminar('¿Eliminar esta cuenta? Esta acción no se puede deshacer.');
+  if (!ok) return;
   await sb.from('cuentas').delete().eq('id', id);
   await loadCuentas(); renderCuentas();
+  showToast('✓ Cuenta eliminada.', 'info');
 }
 
 // ── RENDER MOVIMIENTOS ────────────────────────────────────────────────────────
@@ -599,16 +849,18 @@ function renderTable() {
       <td class="r muted-text">${m.usd ? 'U$S ' + fmt(m.usd) : '—'}</td>
       <td style="white-space:nowrap;text-align:right">
         <button class="btn btn-sm" onclick="openModal('${m.id}')">Editar</button>
-        <button class="btn btn-sm btn-del" onclick="confirmarEliminar('${m.id}')">Eliminar</button>
+        <button class="btn btn-sm btn-del" onclick="eliminarMovimiento('${m.id}')">Eliminar</button>
       </td>
     </tr>
   `).join('');
 }
 
-async function confirmarEliminar(id) {
-  if (!confirm('¿Eliminar este movimiento?')) return;
+async function eliminarMovimiento(id) {
+  const ok = await confirmarEliminar('¿Eliminar este movimiento? Esta acción no se puede deshacer.');
+  if (!ok) return;
   await sb.from('movimientos').delete().eq('id', id);
   await loadMovimientos();
+  showToast('✓ Movimiento eliminado.', 'info');
 }
 
 // ── RENDER EMPRESAS ───────────────────────────────────────────────────────────
@@ -635,6 +887,7 @@ function renderEmpresas() {
       <td class="muted-text">${e.condicion_iva || '—'}</td>
       <td class="muted-text">${e.email || '—'}</td>
       <td class="muted-text">${e.telefono || '—'}</td>
+      <td class="muted-text" style="font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.observaciones || ''}">${e.observaciones || '—'}</td>
       <td class="r">${saldoLabel}</td>
       <td style="text-align:right;white-space:nowrap">
         ${btnSaldo}
@@ -653,7 +906,7 @@ function renderCuentas() {
     tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">Sin cuentas. Hacé clic en "+ Nueva cuenta".</div></td></tr>`;
     return;
   }
-  const tipoColor = { Activo: 'b-ing', Pasivo: 'b-eg', Patrimonio: 'b-inv', Ingreso: 'b-ban', Egreso: 'b-tar' };
+  const tipoColor = { Activo: 'b-ing', Pasivo: 'b-eg', Patrimonio: 'b-inv', Ingreso: 'b-ban', Egreso: 'b-tar', Impuesto: 'b-imp' };
   tbody.innerHTML = cuentas.map(c => `
     <tr>
       <td style="font-family:var(--mono);font-size:12px;color:var(--text-muted)">${c.codigo}</td>
@@ -833,60 +1086,83 @@ document.addEventListener('click', () => {
 // ── ASIENTOS (PARTIDA DOBLE) ──────────────────────────────────────────────────
 let asientos = [], asientoLineas = [], editAsientoId = null;
 
-const CUENTAS_PREDEFINIDAS = [
-  { codigo: '01.01', nombre: 'Efectivo ARS', tipo: 'Activo' },
-  { codigo: '01.02', nombre: 'Efectivo USD', tipo: 'Activo' },
-  { codigo: '01.03', nombre: 'Banco Galicia', tipo: 'Activo' },
-  { codigo: '01.04', nombre: 'Banco Nación', tipo: 'Activo' },
-  { codigo: '01.05', nombre: 'Banco BBVA', tipo: 'Activo' },
-  { codigo: '01.06', nombre: 'Mercado Pago', tipo: 'Activo' },
-  { codigo: '02.01', nombre: 'Cuentas a pagar', tipo: 'Pasivo' },
-  { codigo: '02.02', nombre: 'Cuentas a cobrar', tipo: 'Activo' },
-  { codigo: '02.03', nombre: 'Tarjeta de crédito', tipo: 'Pasivo' },
-  { codigo: '03.01', nombre: 'Ventas', tipo: 'Ingreso' },
-  { codigo: '03.02', nombre: 'Otros ingresos', tipo: 'Ingreso' },
-  { codigo: '04.01', nombre: 'Compras', tipo: 'Egreso' },
-  { codigo: '04.02', nombre: 'Sueldos', tipo: 'Egreso' },
-  { codigo: '04.03', nombre: 'Impuestos', tipo: 'Egreso' },
-  { codigo: '04.04', nombre: 'Gastos generales', tipo: 'Egreso' },
-];
-
 async function initCuentasPredefinidas() {
-  if (cuentas.length > 0) return;
   const { data: { user } } = await sb.auth.getUser();
-  const predefinidas = [
-    { codigo: '01.01', nombre: 'Efectivo ARS',         tipo: 'Activo' },
-    { codigo: '01.02', nombre: 'Efectivo USD',         tipo: 'Activo' },
-    { codigo: '01.03', nombre: 'Banco Galicia',        tipo: 'Activo' },
-    { codigo: '01.04', nombre: 'Banco Nación',         tipo: 'Activo' },
-    { codigo: '01.05', nombre: 'Banco BBVA',           tipo: 'Activo' },
-    { codigo: '01.06', nombre: 'Mercado Pago',         tipo: 'Activo' },
-    { codigo: '02.01', nombre: 'Cuentas a pagar',      tipo: 'Pasivo' },
-    { codigo: '02.02', nombre: 'Cuentas a cobrar',     tipo: 'Activo' },
-    { codigo: '02.03', nombre: 'IVA Débito Fiscal',    tipo: 'Pasivo' },
-    { codigo: '02.04', nombre: 'IVA Crédito Fiscal',   tipo: 'Activo' },
-    { codigo: '03.01', nombre: 'Ventas',               tipo: 'Ingreso' },
-    { codigo: '03.02', nombre: 'Otros ingresos',       tipo: 'Ingreso' },
-    { codigo: '04.01', nombre: 'Compras',              tipo: 'Egreso' },
-    { codigo: '04.02', nombre: 'Sueldos',              tipo: 'Egreso' },
-    { codigo: '04.03', nombre: 'Impuestos',            tipo: 'Egreso' },
-    { codigo: '04.04', nombre: 'Gastos generales',     tipo: 'Egreso' },
-  ];
-  await sb.from('cuentas').insert(predefinidas.map(c => ({ ...c, user_id: user.id })));
+
+  if (!user) return;
+
+  // 🔥 CLAVE: preguntar a la DB, no a la variable local
+  const { data: existentes } = await sb
+    .from('cuentas')
+    .select('id')
+    .eq('user_id', user.id);
+
+  if (existentes && existentes.length > 0) {
+    console.log('Ya tiene cuentas, no insertar');
+    return;
+  }
+
+  const { data: base } = await sb
+    .from('cuentas_base')
+    .select('*');
+
+  const { error } = await sb
+    .from('cuentas')
+    .insert(
+      base.map(c => ({
+        codigo: c.codigo,
+        nombre: c.nombre,
+        tipo: c.tipo,
+        user_id: user.id,
+        origen: 'base'
+      }))
+    );
+
+  console.log('INSERT ERROR:', error);
+
   await loadCuentas();
-  renderCuentas();
 }
 
-async function agregarCuentasIVASiFaltan() {
-  const tieneDebito  = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
-  const tieneCredito = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
-  if (tieneDebito && tieneCredito) return;
-  const { data: { user } } = await sb.auth.getUser();
-  const nuevas = [];
-  if (!tieneDebito)  nuevas.push({ codigo: '02.03', nombre: 'IVA Débito Fiscal',  tipo: 'Pasivo', user_id: user.id });
-  if (!tieneCredito) nuevas.push({ codigo: '02.04', nombre: 'IVA Crédito Fiscal', tipo: 'Activo', user_id: user.id });
-  if (nuevas.length) { await sb.from('cuentas').insert(nuevas); await loadCuentas(); }
-}
+// async function initCuentasPredefinidas() {
+//   if (cuentas.length > 0) return;
+//   const { data: { user } } = await sb.auth.getUser();
+//   const predefinidas = [
+//     { codigo: '01.01', nombre: 'Efectivo ARS',         tipo: 'Activo' },
+//     { codigo: '01.02', nombre: 'Efectivo USD',         tipo: 'Activo' },
+//     { codigo: '01.03', nombre: 'Banco Galicia',        tipo: 'Activo' },
+//     { codigo: '01.06', nombre: 'Mercado Pago',         tipo: 'Activo' },
+//     { codigo: '01.99', nombre: 'Cuentas a cobrar',     tipo: 'Activo' },
+//     { codigo: '02.01', nombre: 'Cuentas a pagar',      tipo: 'Pasivo' },
+//     { codigo: '03.01', nombre: 'HotDesk Interno',      tipo: 'Ingreso' },
+//     { codigo: '03.02', nombre: 'HotDesk Externo',      tipo: 'Ingreso' },
+//     { codigo: '03.03', nombre: 'Almuerzos y Desayunos',tipo: 'Ingreso' },
+//     { codigo: '03.04', nombre: 'Capital Humano',               tipo: 'Ingreso' },
+//     { codigo: '03.05', nombre: 'Sostenibilidad',               tipo: 'Ingreso' },
+//     { codigo: '03.06', nombre: 'Alquiler',               tipo: 'Ingreso' },
+//     { codigo: '03.07', nombre: 'Monotributos',               tipo: 'Ingreso' },
+//     { codigo: '03.08', nombre: 'Workshop',               tipo: 'Ingreso' },
+//     { codigo: '03.09', nombre: 'Otros Ingresos',               tipo: 'Ingreso' },
+//     { codigo: '04.01', nombre: 'Compras',              tipo: 'Egreso' },
+//     { codigo: '04.02', nombre: 'Sueldos',              tipo: 'Egreso' },
+//     { codigo: '02.04', nombre: 'IVA Crédito Fiscal',   tipo: 'Activo' },
+//     { codigo: '02.03', nombre: 'IVA Débito Fiscal',    tipo: 'Pasivo' },
+//     { codigo: '04.03', nombre: 'Impuestos',            tipo: 'Egreso' },
+//     { codigo: '04.04', nombre: 'Gastos generales',     tipo: 'Egreso' },
+//   ];
+//   await sb.from('cuentas').insert(predefinidas.map(c => ({ ...c, user_id: user.id })));
+//   await loadCuentas();
+//   renderCuentas();
+//}
+// async function agregarCuentasIVASiFaltan() {
+//   const tieneDebito  = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
+//   const tieneCredito = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
+//   if (tieneDebito && tieneCredito) return;
+//   const { data: { user } } = await sb.auth.getUser();
+//   const nuevas = [];
+//   if (!tieneDebito)  nuevas.push({ codigo: '02.03', nombre: 'IVA Débito Fiscal',  tipo: 'Pasivo', user_id: user.id });
+//   if (!tieneCredito) nuevas.push({ codigo: '02.04', nombre: 'IVA Crédito Fiscal', tipo: 'Activo', user_id: user.id });
+//   if (nuevas.length) { await sb.from('cuentas').insert(nuevas); await loadCuentas(); }
+// }
 
 async function loadAsientos() {
   const { data } = await sb.from('asientos').select('*, asiento_lineas(*)').order('fecha', { ascending: false });
@@ -916,8 +1192,8 @@ function openModalAsiento(id) {
     document.getElementById('mas-desc').value = a.descripcion || '';
     document.getElementById('mas-doc').value = a.documento || '';
     document.getElementById('mas-obs').value = a.observaciones || '';
-    document.getElementById('mas-empresa').value = a.empresa_id || '';
-    renderLineas(a.asiento_lineas || []);
+    const emp = empresas.find(e => e.id === a.empresa_id);
+    document.getElementById('mas-empresa-input').value = emp ? emp.nombre : ''; renderLineas(a.asiento_lineas || []);
   } else {
     document.getElementById('mas-fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('mas-desc').value = '';
@@ -929,7 +1205,7 @@ function openModalAsiento(id) {
       { cuenta_id: '', debe: '', haber: '' },
     ]);
   }
-  populateMasEmpresa();
+  populateEmpresasDatalist();
   document.getElementById('modal-asiento').classList.remove('hidden');
 }
 
@@ -942,12 +1218,13 @@ document.getElementById('mas-add-linea').addEventListener('click', () => {
   renderLineas(lineas);
 });
 
-function populateMasEmpresa() {
-  const sel = document.getElementById('mas-empresa');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Sin empresa</option>';
-  empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}</option>`; });
-  sel.value = cur;
+function populateEmpresasDatalist() {
+  const dl = document.getElementById('empresas-list');
+  if (!dl) return;
+
+  dl.innerHTML = empresas.map(e =>
+    `<option value="${e.nombre}"></option>`
+  ).join('');
 }
 
 function renderLineas(lineas) {
@@ -973,13 +1250,13 @@ function eliminarLinea(i) {
   lineas.splice(i, 1);
   renderLineas(lineas);
 }
-
 function getLineasActuales() {
-  return [...document.querySelectorAll('.linea-row')].map(row => ({
-    cuenta_id: row.querySelector('.linea-cuenta').value,
-    cuenta_nombre: row.querySelector('.linea-cuenta').selectedOptions[0]?.text || '',
-    debe: parseFloat(row.querySelector('.linea-debe').value) || 0,
-    haber: parseFloat(row.querySelector('.linea-haber').value) || 0,
+  const cont = document.getElementById('mas-lineas');
+  return [...cont.querySelectorAll('.linea-row')].map(row => ({
+    cuenta_id: row.querySelector('.linea-cuenta')?.value || '',
+    cuenta_nombre: row.querySelector('.linea-cuenta')?.selectedOptions[0]?.text || '',
+    debe: parseFloat(row.querySelector('.linea-debe')?.value) || 0,
+    haber: parseFloat(row.querySelector('.linea-haber')?.value) || 0,
   }));
 }
 
@@ -1009,9 +1286,22 @@ document.getElementById('mas-guardar').addEventListener('click', async () => {
 
   try {
     const { data: { user } } = await sb.auth.getUser();
+
+    // 👇 Obtener nombre escrito
+    const empresaNombre = document.getElementById('mas-empresa-input').value;
+
+    // 👇 Buscar el objeto empresa
+    const empresaObj = empresas.find(e =>
+      e.nombre.toLowerCase() === empresaNombre.toLowerCase()
+    );
+
+    // 👇 Obtener ID real
+    const empresa_id = empresaObj ? empresaObj.id : null;
+
     const asientoData = {
-      fecha, descripcion: desc,
-      empresa_id: document.getElementById('mas-empresa').value || null,
+      fecha,
+      descripcion: desc,
+      empresa_id: empresa_id,
       documento: document.getElementById('mas-doc').value || null,
       observaciones: document.getElementById('mas-obs').value || null,
     };
@@ -1029,6 +1319,7 @@ document.getElementById('mas-guardar').addEventListener('click', async () => {
     await sb.from('asiento_lineas').insert(lineas.map(l => ({ asiento_id: asientoId, ...l })));
     closeModalAsiento();
     await loadAsientos();
+    showToast(editAsientoId ? '✓ Asiento actualizado.' : '✓ Asiento registrado.');
   } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
 
@@ -1081,9 +1372,11 @@ function verAsiento(id) {
 }
 
 async function eliminarAsiento(id) {
-  if (!confirm('¿Eliminar este asiento?')) return;
+  const ok = await confirmarEliminar('¿Eliminar este asiento y todas sus líneas? Esta acción no se puede deshacer.');
+  if (!ok) return;
   await sb.from('asientos').delete().eq('id', id);
   await loadAsientos();
+  showToast('✓ Asiento eliminado.', 'info');
 }
 
 document.getElementById('detalle-close').addEventListener('click', () => {
@@ -1223,6 +1516,7 @@ document.getElementById('mi-guardar').addEventListener('click', async () => {
     }
     closeModalInversion();
     await loadInversiones();
+    showToast(editInvId ? '✓ Inversión actualizada.' : '✓ Inversión registrada.');
   } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
 
@@ -1267,6 +1561,7 @@ document.getElementById('mim-guardar').addEventListener('click', async () => {
     }).eq('id', invId);
     closeModalMovInversion();
     await loadInversiones();
+    showToast('✓ Movimiento registrado.');
   } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
 
@@ -1340,9 +1635,11 @@ function renderInversiones() {
 }
 
 async function eliminarInversion(id) {
-  if (!confirm('¿Eliminar esta inversión?')) return;
+  const ok = await confirmarEliminar('¿Eliminar esta inversión? Esta acción no se puede deshacer.');
+  if (!ok) return;
   await sb.from('inversiones').delete().eq('id', id);
   await loadInversiones();
+  showToast('✓ Inversión eliminada.', 'info');
 }
 
 // ── CUENTAS CORRIENTES ────────────────────────────────────────────────────────
@@ -1361,10 +1658,10 @@ function getSaldoEmpresa(empresaId) {
 }
 
 async function generarAsientoComprobante({ userId, movId, fecha, detalle, tipo, concepto, lineas, totalNeto, totalIva, total, empresaObj, cancelId, cancelNombre }) {
-  const ctaACobrar  = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
-  const ctaAPagar   = cuentas.find(c => c.nombre === 'Cuentas a pagar');
-  const ctaIvaDB    = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
-  const ctaIvaCR    = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
+  const ctaACobrar = cuentas.find(c => c.nombre === 'Cuentas a cobrar');
+  const ctaAPagar = cuentas.find(c => c.nombre === 'Cuentas a pagar');
+  const ctaIvaDB = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
+  const ctaIvaCR = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
 
   let asientoLineas = [];
 
@@ -1406,7 +1703,7 @@ async function generarAsientoComprobante({ userId, movId, fecha, detalle, tipo, 
   // Crear asiento
   const { data: asiento } = await sb.from('asientos').insert({
     user_id: userId, fecha,
-    descripcion: `${tipo} — ${detalle}${empresaObj ? ' ('+empresaObj.nombre+')' : ''}`,
+    descripcion: `${tipo} — ${detalle}${empresaObj ? ' (' + empresaObj.nombre + ')' : ''}`,
     empresa_id: empresaObj?.id || null,
   }).select().single();
 
@@ -1416,11 +1713,11 @@ async function generarAsientoComprobante({ userId, movId, fecha, detalle, tipo, 
   // Cuenta corriente empresa
   if (empresaObj && concepto) {
     const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
-    const saldoAnterior = ccMovs.reduce((s,c) => s + (c.debe||0) - (c.haber||0), 0);
-    const conceptosQueDebian = ['factura_emitida','nota_debito_emitida'];
-    const conceptosQueAcreditan = ['nota_credito_emitida','cobro_efectivo'];
-    const conceptosQueDebo = ['factura_recibida','nota_debito_recibida'];
-    const conceptosQueCancelo = ['nota_credito_recibida','pago_realizado'];
+    const saldoAnterior = ccMovs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
+    const conceptosQueDebian = ['factura_emitida', 'nota_debito_emitida'];
+    const conceptosQueAcreditan = ['nota_credito_emitida', 'cobro_efectivo'];
+    const conceptosQueDebo = ['factura_recibida', 'nota_debito_recibida'];
+    const conceptosQueCancelo = ['nota_credito_recibida', 'pago_realizado'];
     let debe = 0, haber = 0;
     if (conceptosQueDebian.includes(concepto)) debe = total;
     else if (conceptosQueAcreditan.includes(concepto)) haber = total;
@@ -1533,5 +1830,112 @@ document.getElementById('cp-guardar').addEventListener('click', async () => {
     await loadMovimientos();
     await loadCuentasCorrientes();
     await loadAsientos();
+    showToast('✓ Cobro/pago registrado.');
   } catch (e) { err.textContent = 'Error: ' + e.message; }
+});
+
+// ── UX GLOBAL ─────────────────────────────────────────────────────────────────
+
+// Mapa de todos los modales con su función de cierre
+const MODALES = [
+  { id: 'modal-overlay', close: () => closeModal() },
+  { id: 'modal-empresa', close: () => closeModalEmpresa() },
+  { id: 'modal-cuenta', close: () => closeModalCuenta() },
+  { id: 'modal-asiento', close: () => closeModalAsiento() },
+  { id: 'modal-detalle', close: () => document.getElementById('modal-detalle').classList.add('hidden') },
+  { id: 'modal-inversion', close: () => closeModalInversion() },
+  { id: 'modal-mov-inversion', close: () => closeModalMovInversion() },
+  { id: 'modal-cobrar-pagar', close: () => closeModalCobrarPagar() },
+  { id: 'modal-confirm', close: () => document.getElementById('modal-confirm').classList.add('hidden') },
+];
+
+// Cierre al hacer click fuera del modal (en el overlay)
+MODALES.forEach(({ id, close }) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('click', e => {
+    if (e.target === el) close();
+  });
+});
+
+// Cierre con ESC — cierra el último modal abierto
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  // Busca el último modal visible (de atrás hacia adelante)
+  const abierto = [...MODALES].reverse().find(({ id }) => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  });
+  if (abierto) abierto.close();
+});
+
+// Bloquear scroll del body cuando hay un modal abierto
+const scrollObserver = new MutationObserver(() => {
+  const hayModalAbierto = MODALES.some(({ id }) => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  });
+  document.body.style.overflow = hayModalAbierto ? 'hidden' : '';
+});
+MODALES.forEach(({ id }) => {
+  const el = document.getElementById(id);
+  if (el) scrollObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
+});
+
+// Confirmaciones de eliminación con toast en lugar de confirm() nativo
+async function confirmarEliminar(mensaje) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.35);
+      display:flex;align-items:center;justify-content:center;z-index:10000`;
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+        width:360px;max-width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.15);overflow:hidden">
+        <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border)">
+          <p style="font-size:15px;font-weight:500;color:var(--text)">Confirmar eliminación</p>
+        </div>
+        <div style="padding:1rem 1.5rem">
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5">${mensaje}</p>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid var(--border)">
+          <button class="btn btn-ghost" id="_del-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="_del-ok" style="background:#e74c3c">Eliminar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const cleanup = (result) => { overlay.remove(); resolve(result); };
+    overlay.querySelector('#_del-ok').onclick = () => cleanup(true);
+    overlay.querySelector('#_del-cancel').onclick = () => cleanup(false);
+    overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', esc); cleanup(false); }
+    });
+  });
+}
+
+// Auto-focus al primer input de cada modal al abrirse
+const autoFocusMap = {
+  'modal-overlay': 'f-detalle',
+  'modal-empresa': 'me-nombre',
+  'modal-cuenta': 'mc-codigo',
+  'modal-asiento': 'mas-desc',
+  'modal-inversion': 'mi-nombre',
+  'modal-mov-inversion': 'mim-monto',
+  'modal-cobrar-pagar': 'cp-monto',
+};
+
+const focusObserver = new MutationObserver((mutations) => {
+  mutations.forEach(({ target }) => {
+    const id = target.id;
+    if (!target.classList.contains('hidden') && autoFocusMap[id]) {
+      setTimeout(() => {
+        const input = document.getElementById(autoFocusMap[id]);
+        if (input) input.focus();
+      }, 50);
+    }
+  });
+});
+Object.keys(autoFocusMap).forEach(id => {
+  const el = document.getElementById(id);
+  if (el) focusObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
 });
