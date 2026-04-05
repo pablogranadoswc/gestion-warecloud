@@ -98,8 +98,11 @@ document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.add('active');
     document.getElementById('page-' + page).classList.add('active');
     document.getElementById('page-title').textContent = titles[page];
-    const btnNuevo = document.getElementById('btn-nuevo');
-    btnNuevo.textContent = page === 'empresas' ? '+ Nueva empresa' : page === 'cuentas' ? '+ Nueva cuenta' : page === 'asientos' ? '+ Nuevo asiento' : page === 'inversiones' ? '+ Nueva inversión' : '+ Nuevo movimiento'; btnNuevo.dataset.context = page;
+    const btnNuevo = document.getElementById('btn-nuevo-movimiento');
+    btnNuevo.addEventListener('click', () => {
+      clearForm();
+      openModal();
+    }); btnNuevo.textContent = page === 'empresas' ? '+ Nueva empresa' : page === 'cuentas' ? '+ Nueva cuenta' : page === 'asientos' ? '+ Nuevo asiento' : page === 'inversiones' ? '+ Nueva inversión' : '+ Nuevo movimiento'; btnNuevo.dataset.context = page;
     if (page === 'er') renderER();
     if (page === 'flujo') renderFlujo();
     if (page === 'empresas') renderEmpresas();
@@ -110,13 +113,17 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-document.getElementById('btn-nuevo').addEventListener('click', () => {
-  const ctx = document.getElementById('btn-nuevo').dataset.context || 'movimientos';
+document.getElementById('btn-nuevo-movimiento').addEventListener('click', () => {
+  const ctx = document.getElementById('btn-nuevo-movimiento').dataset.context || 'movimientos';
+
   if (ctx === 'empresas') openModalEmpresa();
   else if (ctx === 'cuentas') openModalCuenta();
   else if (ctx === 'asientos') openModalAsiento();
   else if (ctx === 'inversiones') openModalInversion();
-  else openModal();
+  else {
+    clearForm(); // 🔹 Limpiamos todos los campos antes de abrir modal
+    openModal();
+  }
 });
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
@@ -182,9 +189,9 @@ let compLineas = [];
 
 async function openModal(id) {
   if (!empresas.length) {
-  await loadEmpresas();
-}
-  
+    await loadEmpresas();
+  }
+
   editId = id || null;
   compLineas = [];
   document.getElementById('modal-title').textContent = editId ? 'Editar comprobante' : 'Nuevo comprobante';
@@ -211,11 +218,11 @@ async function openModal(id) {
   }
   document.getElementById('modal-overlay').classList.remove('hidden');
 
-setTimeout(() => {
-  const input = document.getElementById('mov-empresa-input');
-  const dropdown = document.getElementById('mov-empresa-dropdown');
-  setupEmpresaAutocomplete(input, dropdown);
-}, 0);
+  setTimeout(() => {
+    const input = document.getElementById('mov-empresa-input');
+    const dropdown = document.getElementById('mov-empresa-dropdown');
+    setupEmpresaAutocomplete(input, dropdown);
+  }, 0);
 }
 
 
@@ -379,17 +386,52 @@ function actualizarTotalesComp() {
 }
 
 function clearForm() {
-  ['fecha', 'detalle', 'doc', 'obs'].forEach(f => {
-    const el = document.getElementById('f-' + f); if (el) el.value = '';
+  // ── Campos de texto ──
+  ['f-detalle', 'f-doc', 'f-obs', 'f-concepto'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
-  document.getElementById('f-tipo').value = 'Ingreso';
-  const inp = document.getElementById('f-empresa-input');
-  if (inp) {
-    inp.value = '';
-    delete inp.dataset.id;
-  } const selC = document.getElementById('f-cancelacion'); if (selC) selC.value = '';
+
+  // ── Campos numéricos ──
+  ['f-monto', 'f-neto', 'f-usd', 'f-tc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  // ── Fecha ──
+  const fFecha = document.getElementById('f-fecha');
+  if (fFecha) fFecha.value = '';
+
+  // ── Selects ──
+  const fTipo = document.getElementById('f-tipo');
+  if (fTipo) fTipo.value = 'Ingreso'; // valor por defecto
+
+  // ── Empresa / Razón social ──
+  const fEmpresaSelect = document.getElementById('f-empresa-select');
+  if (fEmpresaSelect) fEmpresaSelect.value = ''; // limpia el valor interno
+
+  // input visible de autocomplete
+  if (typeof empInput !== 'undefined' && empInput) {
+    empInput.value = '';           // limpia lo que ve el usuario
+    delete empInput.dataset.id;    // borra id interno
+    delete empInput.dataset.nombre; // borra nombre interno
+  }
+
+  // ── Líneas de comprobante ──
   compLineas = [];
+  const cont = document.getElementById('comp-lineas');
+  if (cont) cont.innerHTML = '';
+
+  // ── Mensajes de error ──
+  const errEl = document.getElementById('form-error');
+  if (errEl) errEl.textContent = '';
 }
+
+// ── Evento Nuevo Movimiento ──
+document.getElementById('btn-nuevo-movimiento').addEventListener('click', () => {
+  clearForm();
+  openModal(); // abre el modal
+});
 
 function fillForm(m) {
   document.getElementById('f-fecha').value = m.fecha || '';
@@ -416,12 +458,24 @@ document.getElementById('comp-add-linea')?.addEventListener('click', () => {
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-  const fecha = document.getElementById('f-fecha').value;
-  const detalle = document.getElementById('f-detalle').value.trim();
-  const tipo = document.getElementById('f-tipo').value;
-  if (!fecha || !detalle) { errEl.textContent = 'Fecha y detalle son obligatorios.'; return; }
+
+  const empInput = document.getElementById('f-empresa-input'); // input visible de autocomplete
+  const fecha = document.getElementById('f-fecha')?.value || '';
+  const detalle = document.getElementById('f-detalle')?.value.trim() || '';
+  const tipo = document.getElementById('f-tipo')?.value || '';
+
+  if (!fecha || !detalle) {
+    errEl.textContent = 'Fecha y detalle son obligatorios.';
+    return;
+  }
+
   const lineasValidas = compLineas.filter(l => l.monto_neto > 0);
-  if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
+  if (!lineasValidas.length) {
+    errEl.textContent = 'Agregá al menos una línea con monto.';
+    return;
+  }
+
+  const empresaId = empInput?.dataset.id || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
   const concepto = document.getElementById('f-concepto')?.value || null;
   const cancelVal = document.getElementById('f-cancelacion')?.value || '';
@@ -434,7 +488,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   try {
     const { data: { user } } = await sb.auth.getUser();
 
-    // Guardar en movimientos (para compatibilidad con tabla existente)
     const movData = {
       fecha, tipo, detalle,
       empresa: empresaObj?.nombre || null,
@@ -443,8 +496,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       monto: total,
       monto_neto: totalNeto,
       clasificacion: lineasValidas.map(l => l.cuenta_nombre).join(', '),
-      documento: document.getElementById('f-doc').value || null,
-      observaciones: document.getElementById('f-obs').value || null,
+      documento: document.getElementById('f-doc')?.value || null,
+      observaciones: document.getElementById('f-obs')?.value || null,
       concepto,
     };
 
@@ -458,7 +511,6 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       movId = newMov.id;
     }
 
-    // Generar asiento automático con partida doble completa
     await generarAsientoComprobante({
       userId: user.id, movId, fecha, detalle, tipo, concepto,
       lineas: lineasValidas, totalNeto, totalIva, total,
@@ -469,38 +521,56 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     await loadMovimientos();
     await loadCuentasCorrientes();
     showSuccessBanner('✓ Comprobante registrado correctamente.');
-  } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+  } catch (e) {
+    errEl.textContent = 'Error al guardar: ' + e.message;
+  }
 });
 
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-  const fecha = document.getElementById('f-fecha').value;
-  const detalle = document.getElementById('f-detalle').value.trim();
-  const monto = document.getElementById('f-monto').value;
-  if (!fecha || !detalle || !monto) { errEl.textContent = 'Completá los campos obligatorios: Fecha, Detalle y Monto.'; return; }
-  const empresaId = document.getElementById('f-empresa-select').value || null;
-  const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
-  const tipo = document.getElementById('f-tipo').value;
-  const montoNum = parseFloat(monto) || 0;
 
-  const concepto = document.getElementById('f-concepto').value;
-  const tipoReal = (concepto === 'cobro_efectivo' || concepto === 'pago_realizado')
-    ? 'Banco'
-    : tipo;
+  // Inputs principales
+  const fecha = document.getElementById('f-fecha')?.value || '';
+  const detalle = document.getElementById('f-detalle')?.value.trim() || '';
+  const montoStr = document.getElementById('f-monto')?.value || '';
+  if (!fecha || !detalle || !montoStr) {
+    errEl.textContent = 'Completá los campos obligatorios: Fecha, Detalle y Monto.';
+    return;
+  }
+  const montoNum = parseFloat(montoStr) || 0;
+
+  // Empresa
+  const empresaId = document.getElementById('f-empresa-select')?.value || null;
+  const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
+
+  // Tipo y concepto
+  const tipo = document.getElementById('f-tipo')?.value || '';
+  const concepto = document.getElementById('f-concepto')?.value || '';
+  const tipoReal = (concepto === 'cobro_efectivo' || concepto === 'pago_realizado') ? 'Banco' : tipo;
+
+  // Otros campos opcionales
+  const montoNeto = parseFloat(document.getElementById('f-neto')?.value) || null;
+  const tipoCambio = parseFloat(document.getElementById('f-tc')?.value) || null;
+  const usd = parseFloat(document.getElementById('f-usd')?.value) || null;
+  const clasificacion = document.getElementById('f-cuenta')?.value || null;
+  const documento = document.getElementById('f-doc')?.value || null;
+  const observaciones = document.getElementById('f-obs')?.value || null;
 
   const mov = {
-    fecha, tipo: tipoReal, detalle,
-    empresa: empresaObj ? empresaObj.nombre : null,
+    fecha,
+    tipo: tipoReal,
+    detalle,
+    empresa: empresaObj?.nombre || null,
     empresa_id: empresaId,
-    cuit: empresaObj ? empresaObj.cuit : null,
+    cuit: empresaObj?.cuit || null,
     monto: montoNum,
-    monto_neto: parseFloat(document.getElementById('f-neto').value) || null,
-    tipo_cambio: parseFloat(document.getElementById('f-tc').value) || null,
-    usd: parseFloat(document.getElementById('f-usd').value) || null,
-    clasificacion: document.getElementById('f-cuenta').value || null,
-    documento: document.getElementById('f-doc').value || null,
-    observaciones: document.getElementById('f-obs').value || null,
+    monto_neto: montoNeto,
+    tipo_cambio: tipoCambio,
+    usd,
+    clasificacion,
+    documento,
+    observaciones,
   };
 
   try {
@@ -515,9 +585,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
         .insert({ ...mov, user_id: user.id }).select().single();
       movId = newMov.id;
 
-      // Generar asiento automático si tiene empresa
+      // Generar asiento automático si tiene empresa y concepto
       if (empresaId && concepto) {
-        const { data: { user } } = await sb.auth.getUser();
         await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId: user.id, concepto });
       }
     }
@@ -527,7 +596,9 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     await loadCuentasCorrientes();
     showSuccessBanner('✓ Movimiento registrado correctamente.');
 
-  } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+  } catch (e) {
+    errEl.textContent = 'Error al guardar: ' + e.message;
+  }
 });
 
 function actualizarConceptoSegunTipo() {
@@ -1284,7 +1355,7 @@ function cuentaOptions(selectedId) {
 
 // ── MODAL ASIENTO ─────────────────────────────────────────────────────────────
 async function openModalAsiento(id) {
-   if (!empresas.length) {
+  if (!empresas.length) {
     await loadEmpresas(); // 🔥 clave
   }
 
@@ -1292,7 +1363,7 @@ async function openModalAsiento(id) {
   document.getElementById('mas-title').textContent = editAsientoId ? 'Editar asiento' : 'Nuevo asiento';
   document.getElementById('mas-error').textContent = '';
 
- 
+
 
 
   if (editAsientoId) {
