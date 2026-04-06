@@ -2,6 +2,77 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let movimientos = [], empresas = [], cuentas = [], editId = null;
+let filtrosEmpresas = [];
+let empresasSeleccionadas = [];
+
+const inputEmp = document.getElementById('empresas-search');
+const dropdownEmp = document.getElementById('empresas-autocomplete');
+
+// 🔍 AUTOCOMPLETE AL ESCRIBIR
+inputEmp.addEventListener('input', () => {
+  const val = inputEmp.value.toLowerCase().trim();
+
+  if (!val) {
+    dropdownEmp.innerHTML = '';
+    return;
+  }
+
+  const resultados = empresas
+    .filter(e =>
+      e.nombre.toLowerCase().includes(val) ||
+      (e.cuit || '').includes(val)
+    )
+    .slice(0, 8);
+
+  dropdownEmp.innerHTML = resultados.map(e => `
+    <div class="dropdown-item"
+         data-nombre="${e.nombre.toLowerCase()}">
+      ${e.nombre}
+      ${e.cuit ? `<span style="font-size:11px;color:var(--text-faint)"> ${e.cuit}</span>` : ''}
+    </div>
+  `).join('');
+
+  // 👉 CLICK selecciona
+  dropdownEmp.querySelectorAll('.dropdown-item').forEach(item => {
+    item.onclick = () => {
+      agregarFiltro(item.dataset.nombre);
+    };
+  });
+});
+
+
+// ⌨️ ENTER selecciona lo escrito
+inputEmp.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+
+    const val = inputEmp.value.trim().toLowerCase();
+    if (!val) return;
+
+    agregarFiltro(val);
+  }
+});
+
+
+// ➕ AGREGAR FILTRO (centralizado)
+function agregarFiltro(val) {
+  if (!filtrosEmpresas.includes(val)) {
+    filtrosEmpresas.push(val);
+  }
+
+  inputEmp.value = '';
+  dropdownEmp.innerHTML = '';
+
+  renderEmpresas();
+}
+
+
+// ❌ ELIMINAR FILTRO
+function removeFiltroEmpresa(f) {
+  filtrosEmpresas = filtrosEmpresas.filter(x => x !== f);
+  renderEmpresas();
+}
+
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 async function checkSession() {
@@ -168,20 +239,16 @@ function populateCuentaSelect() {
   sel.value = cur;
 }
 
-function filtrarEmpresasModal() {
-  const input = document.getElementById('f-empresa-input');
-  const lista = document.getElementById('f-empresa-lista');
-  const q = input.value.toLowerCase();
-  if (!q) { lista.style.display = 'none'; return; }
-  const filtradas = empresas.filter(e => e.nombre.toLowerCase().includes(q) || (e.cuit || '').includes(q));
-  if (!filtradas.length) { lista.style.display = 'none'; return; }
-  lista.innerHTML = filtradas.map(e => `
-    <div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:0.5px solid var(--border)"
-      onmousedown="seleccionarEmpresaModal('${e.id}','${e.nombre.replace(/'/g, "\\'")}')">
-      ${e.nombre}${e.cuit ? ' <span style="color:var(--text-faint);font-size:11px">' + e.cuit + '</span>' : ''}
-    </div>
-  `).join('');
-  lista.style.display = 'block';
+function filtrarEmpresasBase(empresas) {
+  const q = document.getElementById('empresas-search').value.toLowerCase().trim();
+  if (!q) return empresas;
+
+  const palabras = q.split(' ').filter(Boolean);
+
+  return empresas.filter(e => {
+    const texto = `${e.nombre} ${e.cuit || ''} ${e.email || ''} ${e.telefono || ''}`.toLowerCase();
+    return palabras.every(p => texto.includes(p));
+  });
 }
 
 function seleccionarEmpresaModal(id, nombre) {
@@ -190,9 +257,75 @@ function seleccionarEmpresaModal(id, nombre) {
   document.getElementById('f-empresa-lista').style.display = 'none';
 }
 
+
 function limpiarEmpresaModal() {
   document.getElementById('f-empresa-input').value = '';
   document.getElementById('f-empresa-id').value = '';
+}
+
+const empSearch = document.getElementById('empresas-search');
+
+empSearch.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault(); // 🔥 evita comportamientos raros
+
+    const val = empSearch.value.trim().toLowerCase();
+    if (!val) return;
+
+    if (!filtrosEmpresas.includes(val)) {
+      filtrosEmpresas.push(val);
+    }
+
+    empSearch.value = '';
+
+    empSearch.blur(); // 👈 ACÁ VA
+
+    renderEmpresas(); // 🔥 ESTO ES LO QUE TE FALTA
+  }
+});
+
+function handleSearchEmpresas(e) {
+  if (e.key !== 'Enter') return;
+
+  const input = e.target;
+  const val = input.value.trim().toLowerCase();
+
+  if (!val) return;
+
+  if (!filtrosEmpresas.includes(val)) {
+    filtrosEmpresas.push(val);
+  }
+
+  input.value = '';
+
+  renderEmpresasChips();
+  renderEmpresas();
+}
+
+function renderEmpresasChips() {
+  const cont = document.getElementById('empresas-chips');
+  if (!cont) return;
+
+  cont.innerHTML = filtrosEmpresas.map(f => `
+    <div style="
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      display:flex;
+      gap:6px;
+      align-items:center;
+    ">
+      ${f}
+      <span style="cursor:pointer" onclick="removeFiltroEmpresa('${f}')">✕</span>
+    </div>
+  `).join('');
+}
+
+function removeFiltroEmpresa(f) {
+  filtrosEmpresas = filtrosEmpresas.filter(x => x !== f);
+  renderEmpresas();
 }
 
 // ── FORMAT ────────────────────────────────────────────────────────────────────
@@ -229,7 +362,9 @@ async function openModal(id) {
   document.getElementById('form-error').textContent = '';
   clearForm();
   document.getElementById('f-empresa-input').value = '';
-  document.getElementById('f-empresa-id').value = ''; populateCuentaSelect();
+  document.getElementById('f-empresa-id').value = '';
+  populateCuentaSimpleSelect();
+  populateCuentaSelect();
   populateCancelacionSelect();
 
 
@@ -256,6 +391,15 @@ async function openModal(id) {
 
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+function populateCuentaSimpleSelect() {
+  const sel = document.getElementById('f-cuenta-simple');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccionar cuenta...</option>';
+  cuentas.filter(c => c.tipo === 'Activo').forEach(c => {
+    sel.innerHTML += `<option value="${c.id}|${c.nombre}">${c.codigo} — ${c.nombre}</option>`;
+  });
+}
 
 function populateCancelacionSelect() {
   const sel = document.getElementById('f-cancelacion');
@@ -463,14 +607,14 @@ document.getElementById('btn-nuevo-movimiento').addEventListener('click', () => 
 });
 
 function fillForm(m) {
-  document.getElementById('f-fecha').value   = m.fecha || '';
-  document.getElementById('f-tipo').value    = m.tipo || 'Ingreso';
+  document.getElementById('f-fecha').value = m.fecha || '';
+  document.getElementById('f-tipo').value = m.tipo || 'Ingreso';
   document.getElementById('f-detalle').value = m.detalle || '';
-  document.getElementById('f-doc').value     = m.documento || '';
-  document.getElementById('f-obs').value     = m.observaciones || '';
+  document.getElementById('f-doc').value = m.documento || '';
+  document.getElementById('f-obs').value = m.observaciones || '';
   const emp = empresas.find(e => e.id === m.empresa_id);
   document.getElementById('f-empresa-input').value = emp ? emp.nombre : '';
-  document.getElementById('f-empresa-id').value    = m.empresa_id || '';
+  document.getElementById('f-empresa-id').value = m.empresa_id || '';
   actualizarConceptoSegunTipo();
   const selConcepto = document.getElementById('f-concepto');
   if (selConcepto) selConcepto.value = m.concepto || '';
@@ -488,34 +632,48 @@ document.getElementById('comp-add-linea')?.addEventListener('click', () => {
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-  const fecha   = document.getElementById('f-fecha')?.value || '';
+  const fecha = document.getElementById('f-fecha')?.value || '';
   const detalle = document.getElementById('f-detalle')?.value.trim() || '';
-  const tipo    = document.getElementById('f-tipo')?.value || '';
+  const tipo = document.getElementById('f-tipo')?.value || '';
   if (!fecha || !detalle) { errEl.textContent = 'Fecha y detalle son obligatorios.'; return; }
-  const lineasValidas = compLineas.filter(l => l.monto_neto > 0);
-  if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
 
-  const empresaId  = document.getElementById('f-empresa-id')?.value || null;
+  const empresaId = document.getElementById('f-empresa-id')?.value || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
-  const concepto   = document.getElementById('f-concepto')?.value || null;
-  const cancelVal  = document.getElementById('f-cancelacion')?.value || '';
-  const [cancelId, cancelNombre] = cancelVal ? cancelVal.split('|') : [null, null];
+  const concepto = document.getElementById('f-concepto')?.value || null;
 
-  const totalNeto = lineasValidas.reduce((s,l) => s + (l.monto_neto||0), 0);
-  const totalIva  = lineasValidas.reduce((s,l) => s + (l.iva_monto||0), 0);
-  const total     = lineasValidas.reduce((s,l) => s + (l.total||0), 0);
+// Para Cobro y Pago usar sección simple
+  const esCancelacion = tipo === 'Cobro' || tipo === 'Pago';
+  let lineasValidas, totalNeto, totalIva, total, cancelId, cancelNombre;
 
+  if (esCancelacion) {
+    const montoSimple = parseFloat(document.getElementById('f-monto-simple')?.value) || 0;
+    const cuentaVal   = document.getElementById('f-cuenta-simple')?.value || '';
+    if (!montoSimple) { errEl.textContent = 'El monto es obligatorio.'; return; }
+    if (!cuentaVal)   { errEl.textContent = 'Seleccioná una cuenta.'; return; }
+    [cancelId, cancelNombre] = cuentaVal.split('|');
+    lineasValidas = [{ cuenta_id: cancelId, cuenta_nombre: cancelNombre, monto_neto: montoSimple, iva_monto: 0, total: montoSimple }];
+    totalNeto = montoSimple; totalIva = 0; total = montoSimple;
+  } else {
+    lineasValidas = compLineas.filter(l => l.monto_neto > 0);
+    if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
+    const cancelVal = document.getElementById('f-cancelacion')?.value || '';
+    [cancelId, cancelNombre] = cancelVal ? cancelVal.split('|') : [null, null];
+    totalNeto = lineasValidas.reduce((s,l) => s + (l.monto_neto||0), 0);
+    totalIva  = lineasValidas.reduce((s,l) => s + (l.iva_monto||0), 0);
+    total     = lineasValidas.reduce((s,l) => s + (l.total||0), 0);
+  }
+  
   try {
     const { data: { user } } = await sb.auth.getUser();
     const movData = {
       fecha, tipo, detalle,
-      empresa:       empresaObj?.nombre || null,
-      empresa_id:    empresaId,
-      cuit:          empresaObj?.cuit || null,
-      monto:         total,
-      monto_neto:    totalNeto,
+      empresa: empresaObj?.nombre || null,
+      empresa_id: empresaId,
+      cuit: empresaObj?.cuit || null,
+      monto: total,
+      monto_neto: totalNeto,
       clasificacion: lineasValidas.map(l => l.cuenta_nombre).join(', '),
-      documento:     document.getElementById('f-doc')?.value || null,
+      documento: document.getElementById('f-doc')?.value || null,
       observaciones: document.getElementById('f-obs')?.value || null,
       concepto,
     };
@@ -540,7 +698,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     await loadMovimientos();
     await loadCuentasCorrientes();
     showSuccessBanner('✓ Comprobante registrado correctamente.');
-  } catch(e) { errEl.textContent = 'Error al guardar: ' + e.message; }
+  } catch (e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
 
 function actualizarConceptoSegunTipo() {
@@ -559,26 +717,22 @@ function actualizarConceptoSegunTipo() {
       { value: 'nota_debito_recibida', label: 'Nota de débito recibida (aumenta nuestra deuda)' },
       { value: 'nota_credito_recibida', label: 'Nota de crédito recibida (reduce egreso)' },
     ],
-    Cobro: [
-      { value: 'cobro_efectivo', label: 'Cobro (cancela deuda del cliente)' },
-    ],
-    Pago: [
-      { value: 'pago_realizado', label: 'Pago (cancela nuestra deuda con proveedor)' },
-    ],
+    Cobro: [{ value: 'cobro_efectivo', label: 'Cobro (cancela deuda del cliente)' }],
+    Pago: [{ value: 'pago_realizado', label: 'Pago (cancela nuestra deuda con proveedor)' }],
   };
 
   const lista = opciones[tipo] || [];
   sel.innerHTML = '<option value="">Sin impacto en cuenta corriente</option>';
   lista.forEach(o => { sel.innerHTML += `<option value="${o.value}">${o.label}</option>`; });
-
-  // Para Cobro y Pago preseleccionar automáticamente
   if (tipo === 'Cobro') sel.value = 'cobro_efectivo';
   if (tipo === 'Pago') sel.value = 'pago_realizado';
 
-  // Mostrar/ocultar sección de líneas según tipo
-  const secLineas = document.getElementById('comp-lineas')?.closest('div[style]');
+  // Mostrar sección correcta según tipo
+  const secLineas = document.getElementById('sec-lineas');
+  const secSimple = document.getElementById('sec-simple');
   const esCancelacion = tipo === 'Cobro' || tipo === 'Pago';
   if (secLineas) secLineas.style.display = esCancelacion ? 'none' : 'block';
+  if (secSimple) secSimple.style.display = esCancelacion ? 'block' : 'none';
 }
 
 document.getElementById('f-tipo').addEventListener('change', actualizarConceptoSegunTipo);
@@ -586,22 +740,134 @@ document.getElementById('f-tipo').addEventListener('change', actualizarConceptoS
 // ── MODAL EMPRESA ─────────────────────────────────────────────────────────────
 const IVA_OPTS = ['', 'Responsable Inscripto', 'Monotributista', 'Exento', 'Consumidor Final'];
 
-function renderEmpresaFilas(filas) {
-  const cont = document.getElementById('me-filas');
-  cont.innerHTML = filas.map((f, i) => `
-    <div class="linea-row" data-i="${i}" style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.5fr 1fr 1.5fr 28px;gap:6px;align-items:center">
-      <input type="text" class="me-f-nombre" placeholder="Nombre / Razón social *" value="${f.nombre || ''}" style="min-width:0">
-      <input type="text" class="me-f-cuit" placeholder="XX-XXXXXXXX-X" value="${f.cuit || ''}" style="min-width:0">
-      <select class="me-f-iva" style="min-width:0">
-        ${IVA_OPTS.map(o => `<option value="${o}" ${f.iva === o ? 'selected' : ''}>${o || '—'}</option>`).join('')}
-      </select>
-      <input type="email" class="me-f-email" placeholder="email@..." value="${f.email || ''}" style="min-width:0">
-      <input type="text" class="me-f-tel" placeholder="Tel." value="${f.tel || ''}" style="min-width:0">
-      <input type="text" class="me-f-obs" placeholder="Observaciones" value="${f.obs || ''}" style="min-width:0">
-      <button class="btn btn-sm btn-del" onclick="eliminarFilaEmpresa(${i})" ${filas.length <= 1 ? 'disabled' : ''}>✕</button>
-    </div>
+function renderEmpresas() {
+  const filtrosDiv = document.getElementById('empresas-filtros-activos');
+
+  if (filtrosDiv) {
+    filtrosDiv.innerHTML = filtrosEmpresas.map(f => `
+    <span style="background:#eee;padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer"
+      onclick="removeFiltroEmpresa('${f}')">
+      ${f} ✕
+    </span>
+  `).join('');
+  }
+  const tbody = document.getElementById('empresas-body');
+  if (!tbody) return;
+
+  const orden = document.getElementById('empresas-orden')?.value || '';
+  const tipoSaldo = document.getElementById('empresas-tipo-saldo')?.value || '';
+
+  // Base con saldo calculado
+  let lista = empresas.map(e => ({
+    ...e,
+    saldo: getSaldoEmpresa(e.id)
+  }));
+
+  // 🔥 FILTRO MULTIPLE (CHIPS / ENTER)
+  if (filtrosEmpresas && filtrosEmpresas.length) {
+    lista = lista.filter(e => {
+      const texto = `
+        ${e.nombre || ''}
+        ${e.cuit || ''}
+        ${e.email || ''}
+        ${e.telefono || ''}
+      `.toLowerCase();
+
+      return filtrosEmpresas.some(f => texto.includes(f));
+    });
+  }
+
+  // 🔍 FILTRO SIMPLE (por si escribís sin enter)
+  const search = (document.getElementById('empresas-search')?.value || '').toLowerCase();
+  if (search) {
+    lista = lista.filter(e =>
+      e.nombre.toLowerCase().includes(search) ||
+      (e.cuit || '').includes(search)
+    );
+  }
+
+  // 💰 FILTRO POR SALDO
+  if (tipoSaldo === 'a-cobrar') {
+    lista = lista.filter(e => e.saldo > 0);
+  } else if (tipoSaldo === 'a-pagar') {
+    lista = lista.filter(e => e.saldo < 0);
+  }
+
+  // 🔽 ORDEN
+  if (orden === 'saldo-desc') {
+    lista.sort((a, b) => b.saldo - a.saldo);
+  } else if (orden === 'saldo-asc') {
+    lista.sort((a, b) => a.saldo - b.saldo);
+  } else if (orden === 'nombre') {
+    lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }
+
+  // 🧱 RENDER
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Sin empresas.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(e => {
+    const saldoLabel = e.saldo === 0
+      ? '<span class="muted-text">$ 0</span>'
+      : e.saldo > 0
+        ? `<span class="pos-text" style="font-weight:500">Nos debe $ ${fmt(e.saldo)}</span>`
+        : `<span class="neg-text" style="font-weight:500">Debemos $ ${fmt(Math.abs(e.saldo))}</span>`;
+
+    const btnSaldo = e.saldo !== 0
+      ? `<button class="btn btn-sm" onclick="openModalCobrarPagar('${e.id}')">${e.saldo > 0 ? 'Cobrar' : 'Pagar'}</button>`
+      : '';
+
+    return `<tr>
+      <td style="font-weight:500">${e.nombre}</td>
+      <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit || '—'}</td>
+      <td class="muted-text">${e.condicion_iva || '—'}</td>
+      <td class="muted-text">${e.email || '—'}</td>
+      <td class="muted-text">${e.telefono || '—'}</td>
+      <td class="r">${saldoLabel}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${btnSaldo}
+        <button class="btn btn-sm" onclick="openModalEmpresa('${e.id}')">Editar</button>
+        <button class="btn btn-sm btn-del" onclick="eliminarEmpresa('${e.id}')">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTablaEmpresas(lista) {
+  const tbody = document.getElementById('empresas-body');
+
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Sin resultados</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(e => `
+    <tr>
+      <td>${e.nombre}</td>
+      <td>${e.cuit || ''}</td>
+      <td>${e.condicion_iva || ''}</td>
+      <td>${e.email || ''}</td>
+      <td>${e.telefono || ''}</td>
+      <td class="r">${fmt(e.saldo || 0)}</td>
+      <td></td>
+    </tr>
   `).join('');
 }
+
+// filtro saldo
+const tipoSaldo = document.getElementById('empresas-tipo-saldo')?.value;
+
+if (tipoSaldo === 'a-cobrar') {
+  lista = lista.filter(e => (e.saldo || 0) > 0);
+}
+
+if (tipoSaldo === 'a-pagar') {
+  lista = lista.filter(e => (e.saldo || 0) < 0);
+}
+
+
 
 function getEmpresaFilas() {
   return [...document.querySelectorAll('#me-filas .linea-row')].map(row => ({
@@ -978,52 +1244,6 @@ async function eliminarMovimiento(id) {
   showToast('✓ Movimiento eliminado.', 'info');
 }
 
-// ── RENDER EMPRESAS ───────────────────────────────────────────────────────────
-function renderEmpresas() {
-  const tbody = document.getElementById('empresas-body');
-  if (!tbody) return;
-
-  const search = (document.getElementById('empresas-search')?.value || '').toLowerCase();
-  const orden = document.getElementById('empresas-orden')?.value || '';
-
-  let lista = empresas.map(e => ({ ...e, saldo: getSaldoEmpresa(e.id) }));
-
-  if (search) lista = lista.filter(e => e.nombre.toLowerCase().includes(search) || (e.cuit || '').includes(search));
-
-  if (orden === 'saldo-desc') lista.sort((a, b) => b.saldo - a.saldo);
-  else if (orden === 'saldo-asc') lista.sort((a, b) => a.saldo - b.saldo);
-  else if (orden === 'nombre') lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-  if (!lista.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Sin empresas.</div></td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = lista.map(e => {
-    const saldoLabel = e.saldo === 0
-      ? '<span class="muted-text">$ 0</span>'
-      : e.saldo > 0
-        ? `<span class="pos-text" style="font-weight:500">Nos debe $ ${fmt(e.saldo)}</span>`
-        : `<span class="neg-text" style="font-weight:500">Debemos $ ${fmt(Math.abs(e.saldo))}</span>`;
-    const btnSaldo = e.saldo !== 0
-      ? `<button class="btn btn-sm" onclick="openModalCobrarPagar('${e.id}')">${e.saldo > 0 ? 'Cobrar' : 'Pagar'}</button>`
-      : '';
-    return `<tr>
-      <td style="font-weight:500">${e.nombre}</td>
-      <td class="muted-text" style="font-family:var(--mono);font-size:12px">${e.cuit || '—'}</td>
-      <td class="muted-text">${e.condicion_iva || '—'}</td>
-      <td class="muted-text">${e.email || '—'}</td>
-      <td class="muted-text">${e.telefono || '—'}</td>
-      <td class="r">${saldoLabel}</td>
-      <td style="text-align:right;white-space:nowrap">
-        ${btnSaldo}
-        <button class="btn btn-sm" onclick="openModalEmpresa('${e.id}')">Editar</button>
-        <button class="btn btn-sm btn-del" onclick="eliminarEmpresa('${e.id}')">Eliminar</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
 // ── RENDER CUENTAS ────────────────────────────────────────────────────────────
 function renderCuentas() {
   const tbody = document.getElementById('cuentas-body');
@@ -1313,47 +1533,6 @@ async function initCuentasPredefinidas() {
 
   await loadCuentas();
 }
-
-// async function initCuentasPredefinidas() {
-//   if (cuentas.length > 0) return;
-//   const { data: { user } } = await sb.auth.getUser();
-//   const predefinidas = [
-//     { codigo: '01.01', nombre: 'Efectivo ARS',         tipo: 'Activo' },
-//     { codigo: '01.02', nombre: 'Efectivo USD',         tipo: 'Activo' },
-//     { codigo: '01.03', nombre: 'Banco Galicia',        tipo: 'Activo' },
-//     { codigo: '01.06', nombre: 'Mercado Pago',         tipo: 'Activo' },
-//     { codigo: '01.99', nombre: 'Cuentas a cobrar',     tipo: 'Activo' },
-//     { codigo: '02.01', nombre: 'Cuentas a pagar',      tipo: 'Pasivo' },
-//     { codigo: '03.01', nombre: 'HotDesk Interno',      tipo: 'Ingreso' },
-//     { codigo: '03.02', nombre: 'HotDesk Externo',      tipo: 'Ingreso' },
-//     { codigo: '03.03', nombre: 'Almuerzos y Desayunos',tipo: 'Ingreso' },
-//     { codigo: '03.04', nombre: 'Capital Humano',               tipo: 'Ingreso' },
-//     { codigo: '03.05', nombre: 'Sostenibilidad',               tipo: 'Ingreso' },
-//     { codigo: '03.06', nombre: 'Alquiler',               tipo: 'Ingreso' },
-//     { codigo: '03.07', nombre: 'Monotributos',               tipo: 'Ingreso' },
-//     { codigo: '03.08', nombre: 'Workshop',               tipo: 'Ingreso' },
-//     { codigo: '03.09', nombre: 'Otros Ingresos',               tipo: 'Ingreso' },
-//     { codigo: '04.01', nombre: 'Compras',              tipo: 'Egreso' },
-//     { codigo: '04.02', nombre: 'Sueldos',              tipo: 'Egreso' },
-//     { codigo: '02.04', nombre: 'IVA Crédito Fiscal',   tipo: 'Activo' },
-//     { codigo: '02.03', nombre: 'IVA Débito Fiscal',    tipo: 'Pasivo' },
-//     { codigo: '04.03', nombre: 'Impuestos',            tipo: 'Egreso' },
-//     { codigo: '04.04', nombre: 'Gastos generales',     tipo: 'Egreso' },
-//   ];
-//   await sb.from('cuentas').insert(predefinidas.map(c => ({ ...c, user_id: user.id })));
-//   await loadCuentas();
-//   renderCuentas();
-//}
-// async function agregarCuentasIVASiFaltan() {
-//   const tieneDebito  = cuentas.find(c => c.nombre === 'IVA Débito Fiscal');
-//   const tieneCredito = cuentas.find(c => c.nombre === 'IVA Crédito Fiscal');
-//   if (tieneDebito && tieneCredito) return;
-//   const { data: { user } } = await sb.auth.getUser();
-//   const nuevas = [];
-//   if (!tieneDebito)  nuevas.push({ codigo: '02.03', nombre: 'IVA Débito Fiscal',  tipo: 'Pasivo', user_id: user.id });
-//   if (!tieneCredito) nuevas.push({ codigo: '02.04', nombre: 'IVA Crédito Fiscal', tipo: 'Activo', user_id: user.id });
-//   if (nuevas.length) { await sb.from('cuentas').insert(nuevas); await loadCuentas(); }
-// }
 
 async function loadAsientos() {
   const { data } = await sb.from('asientos').select('*, asiento_lineas(*)').order('fecha', { ascending: false });
@@ -2164,6 +2343,51 @@ document.getElementById('cp-guardar').addEventListener('click', async () => {
     showToast('✓ Cobro/pago registrado.');
   } catch (e) { err.textContent = 'Error: ' + e.message; }
 });
+
+// ===== AUTOCOMPLETE EMPRESA MODAL =====
+const empInput = document.getElementById('f-empresa-input');
+const empLista = document.getElementById('f-empresa-lista');
+
+if (empInput && empLista) {
+  empInput.addEventListener('input', () => {
+    const q = empInput.value.toLowerCase();
+
+    if (!q) {
+      empLista.innerHTML = '';
+      empLista.style.display = 'none';
+      return;
+    }
+
+    const filtradas = empresas.filter(e =>
+      e.nombre.toLowerCase().includes(q) ||
+      (e.cuit || '').includes(q)
+    );
+
+    if (!filtradas.length) {
+      empLista.innerHTML = '';
+      empLista.style.display = 'none';
+      return;
+    }
+
+    empLista.innerHTML = filtradas.slice(0, 8).map(e => `
+      <div class="dropdown-item"
+           data-id="${e.id}"
+           data-nombre="${e.nombre}">
+        ${e.nombre} ${e.cuit ? '— ' + e.cuit : ''}
+      </div>
+    `).join('');
+
+    empLista.style.display = 'block';
+
+    empLista.querySelectorAll('.dropdown-item').forEach(item => {
+      item.onclick = () => {
+        empInput.value = item.dataset.nombre;
+        document.getElementById('f-empresa-id').value = item.dataset.id;
+        empLista.style.display = 'none';
+      };
+    });
+  });
+}
 
 // ── UX GLOBAL ─────────────────────────────────────────────────────────────────
 
