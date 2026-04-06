@@ -151,7 +151,9 @@ function populateEmpresaSelect() {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">Sin empresa</option>';
-  empresas.forEach(e => { sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — ' + e.cuit : ''}</option>`; });
+  empresas.forEach(e => {
+    sel.innerHTML += `<option value="${e.id}">${e.nombre}${e.cuit ? ' — ' + e.cuit : ''}</option>`;
+  });
   sel.value = cur;
 }
 
@@ -164,6 +166,33 @@ function populateCuentaSelect() {
     sel.innerHTML += `<option value="${c.codigo} ${c.nombre}">${c.codigo} — ${c.nombre}</option>`;
   });
   sel.value = cur;
+}
+
+function filtrarEmpresasModal() {
+  const input = document.getElementById('f-empresa-input');
+  const lista = document.getElementById('f-empresa-lista');
+  const q = input.value.toLowerCase();
+  if (!q) { lista.style.display = 'none'; return; }
+  const filtradas = empresas.filter(e => e.nombre.toLowerCase().includes(q) || (e.cuit || '').includes(q));
+  if (!filtradas.length) { lista.style.display = 'none'; return; }
+  lista.innerHTML = filtradas.map(e => `
+    <div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:0.5px solid var(--border)"
+      onmousedown="seleccionarEmpresaModal('${e.id}','${e.nombre.replace(/'/g, "\\'")}')">
+      ${e.nombre}${e.cuit ? ' <span style="color:var(--text-faint);font-size:11px">' + e.cuit + '</span>' : ''}
+    </div>
+  `).join('');
+  lista.style.display = 'block';
+}
+
+function seleccionarEmpresaModal(id, nombre) {
+  document.getElementById('f-empresa-input').value = nombre;
+  document.getElementById('f-empresa-id').value = id;
+  document.getElementById('f-empresa-lista').style.display = 'none';
+}
+
+function limpiarEmpresaModal() {
+  document.getElementById('f-empresa-input').value = '';
+  document.getElementById('f-empresa-id').value = '';
 }
 
 // ── FORMAT ────────────────────────────────────────────────────────────────────
@@ -199,8 +228,8 @@ async function openModal(id) {
 
   document.getElementById('form-error').textContent = '';
   clearForm();
-  populateEmpresaSelect();
-  populateCuentaSelect();
+  document.getElementById('f-empresa-input').value = '';
+  document.getElementById('f-empresa-id').value = ''; populateCuentaSelect();
   populateCancelacionSelect();
 
 
@@ -434,13 +463,14 @@ document.getElementById('btn-nuevo-movimiento').addEventListener('click', () => 
 });
 
 function fillForm(m) {
-  document.getElementById('f-fecha').value = m.fecha || '';
-  document.getElementById('f-tipo').value = m.tipo || 'Ingreso';
+  document.getElementById('f-fecha').value   = m.fecha || '';
+  document.getElementById('f-tipo').value    = m.tipo || 'Ingreso';
   document.getElementById('f-detalle').value = m.detalle || '';
-  document.getElementById('f-doc').value = m.documento || '';
-  document.getElementById('f-obs').value = m.observaciones || '';
-  const sel = document.getElementById('f-empresa-select');
-  if (sel) sel.value = m.empresa_id || '';
+  document.getElementById('f-doc').value     = m.documento || '';
+  document.getElementById('f-obs').value     = m.observaciones || '';
+  const emp = empresas.find(e => e.id === m.empresa_id);
+  document.getElementById('f-empresa-input').value = emp ? emp.nombre : '';
+  document.getElementById('f-empresa-id').value    = m.empresa_id || '';
   actualizarConceptoSegunTipo();
   const selConcepto = document.getElementById('f-concepto');
   if (selConcepto) selConcepto.value = m.concepto || '';
@@ -458,45 +488,34 @@ document.getElementById('comp-add-linea')?.addEventListener('click', () => {
 document.getElementById('btn-guardar').addEventListener('click', async () => {
   const errEl = document.getElementById('form-error');
   errEl.textContent = '';
-
-  const empInput = document.getElementById('f-empresa-input'); // input visible de autocomplete
-  const fecha = document.getElementById('f-fecha')?.value || '';
+  const fecha   = document.getElementById('f-fecha')?.value || '';
   const detalle = document.getElementById('f-detalle')?.value.trim() || '';
-  const tipo = document.getElementById('f-tipo')?.value || '';
-
-  if (!fecha || !detalle) {
-    errEl.textContent = 'Fecha y detalle son obligatorios.';
-    return;
-  }
-
+  const tipo    = document.getElementById('f-tipo')?.value || '';
+  if (!fecha || !detalle) { errEl.textContent = 'Fecha y detalle son obligatorios.'; return; }
   const lineasValidas = compLineas.filter(l => l.monto_neto > 0);
-  if (!lineasValidas.length) {
-    errEl.textContent = 'Agregá al menos una línea con monto.';
-    return;
-  }
+  if (!lineasValidas.length) { errEl.textContent = 'Agregá al menos una línea con monto.'; return; }
 
-  const empresaId = empInput?.dataset.id || null;
+  const empresaId  = document.getElementById('f-empresa-id')?.value || null;
   const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
-  const concepto = document.getElementById('f-concepto')?.value || null;
-  const cancelVal = document.getElementById('f-cancelacion')?.value || '';
+  const concepto   = document.getElementById('f-concepto')?.value || null;
+  const cancelVal  = document.getElementById('f-cancelacion')?.value || '';
   const [cancelId, cancelNombre] = cancelVal ? cancelVal.split('|') : [null, null];
 
-  const totalNeto = lineasValidas.reduce((s, l) => s + (l.monto_neto || 0), 0);
-  const totalIva = lineasValidas.reduce((s, l) => s + (l.iva_monto || 0), 0);
-  const total = lineasValidas.reduce((s, l) => s + (l.total || 0), 0);
+  const totalNeto = lineasValidas.reduce((s,l) => s + (l.monto_neto||0), 0);
+  const totalIva  = lineasValidas.reduce((s,l) => s + (l.iva_monto||0), 0);
+  const total     = lineasValidas.reduce((s,l) => s + (l.total||0), 0);
 
   try {
     const { data: { user } } = await sb.auth.getUser();
-
     const movData = {
       fecha, tipo, detalle,
-      empresa: empresaObj?.nombre || null,
-      empresa_id: empresaId,
-      cuit: empresaObj?.cuit || null,
-      monto: total,
-      monto_neto: totalNeto,
+      empresa:       empresaObj?.nombre || null,
+      empresa_id:    empresaId,
+      cuit:          empresaObj?.cuit || null,
+      monto:         total,
+      monto_neto:    totalNeto,
       clasificacion: lineasValidas.map(l => l.cuenta_nombre).join(', '),
-      documento: document.getElementById('f-doc')?.value || null,
+      documento:     document.getElementById('f-doc')?.value || null,
       observaciones: document.getElementById('f-obs')?.value || null,
       concepto,
     };
@@ -521,84 +540,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     await loadMovimientos();
     await loadCuentasCorrientes();
     showSuccessBanner('✓ Comprobante registrado correctamente.');
-  } catch (e) {
-    errEl.textContent = 'Error al guardar: ' + e.message;
-  }
-});
-
-document.getElementById('btn-guardar').addEventListener('click', async () => {
-  const errEl = document.getElementById('form-error');
-  errEl.textContent = '';
-
-  // Inputs principales
-  const fecha = document.getElementById('f-fecha')?.value || '';
-  const detalle = document.getElementById('f-detalle')?.value.trim() || '';
-  const montoStr = document.getElementById('f-monto')?.value || '';
-  if (!fecha || !detalle || !montoStr) {
-    errEl.textContent = 'Completá los campos obligatorios: Fecha, Detalle y Monto.';
-    return;
-  }
-  const montoNum = parseFloat(montoStr) || 0;
-
-  // Empresa
-  const empresaId = document.getElementById('f-empresa-select')?.value || null;
-  const empresaObj = empresaId ? empresas.find(e => e.id === empresaId) : null;
-
-  // Tipo y concepto
-  const tipo = document.getElementById('f-tipo')?.value || '';
-  const concepto = document.getElementById('f-concepto')?.value || '';
-  const tipoReal = (concepto === 'cobro_efectivo' || concepto === 'pago_realizado') ? 'Banco' : tipo;
-
-  // Otros campos opcionales
-  const montoNeto = parseFloat(document.getElementById('f-neto')?.value) || null;
-  const tipoCambio = parseFloat(document.getElementById('f-tc')?.value) || null;
-  const usd = parseFloat(document.getElementById('f-usd')?.value) || null;
-  const clasificacion = document.getElementById('f-cuenta')?.value || null;
-  const documento = document.getElementById('f-doc')?.value || null;
-  const observaciones = document.getElementById('f-obs')?.value || null;
-
-  const mov = {
-    fecha,
-    tipo: tipoReal,
-    detalle,
-    empresa: empresaObj?.nombre || null,
-    empresa_id: empresaId,
-    cuit: empresaObj?.cuit || null,
-    monto: montoNum,
-    monto_neto: montoNeto,
-    tipo_cambio: tipoCambio,
-    usd,
-    clasificacion,
-    documento,
-    observaciones,
-  };
-
-  try {
-    const { data: { user } } = await sb.auth.getUser();
-
-    let movId;
-    if (editId) {
-      await sb.from('movimientos').update(mov).eq('id', editId);
-      movId = editId;
-    } else {
-      const { data: newMov } = await sb.from('movimientos')
-        .insert({ ...mov, user_id: user.id }).select().single();
-      movId = newMov.id;
-
-      // Generar asiento automático si tiene empresa y concepto
-      if (empresaId && concepto) {
-        await generarAsientoAutomatico({ movId, fecha, detalle, tipo, montoNum, empresaObj, userId: user.id, concepto });
-      }
-    }
-
-    closeModal();
-    await loadMovimientos();
-    await loadCuentasCorrientes();
-    showSuccessBanner('✓ Movimiento registrado correctamente.');
-
-  } catch (e) {
-    errEl.textContent = 'Error al guardar: ' + e.message;
-  }
+  } catch(e) { errEl.textContent = 'Error al guardar: ' + e.message; }
 });
 
 function actualizarConceptoSegunTipo() {
@@ -1040,19 +982,31 @@ async function eliminarMovimiento(id) {
 function renderEmpresas() {
   const tbody = document.getElementById('empresas-body');
   if (!tbody) return;
-  if (!empresas.length) {
+
+  const search = (document.getElementById('empresas-search')?.value || '').toLowerCase();
+  const orden = document.getElementById('empresas-orden')?.value || '';
+
+  let lista = empresas.map(e => ({ ...e, saldo: getSaldoEmpresa(e.id) }));
+
+  if (search) lista = lista.filter(e => e.nombre.toLowerCase().includes(search) || (e.cuit || '').includes(search));
+
+  if (orden === 'saldo-desc') lista.sort((a, b) => b.saldo - a.saldo);
+  else if (orden === 'saldo-asc') lista.sort((a, b) => a.saldo - b.saldo);
+  else if (orden === 'nombre') lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  if (!lista.length) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Sin empresas.</div></td></tr>`;
     return;
   }
-  tbody.innerHTML = empresas.map(e => {
-    const saldo = getSaldoEmpresa(e.id);
-    const saldoLabel = saldo === 0
+
+  tbody.innerHTML = lista.map(e => {
+    const saldoLabel = e.saldo === 0
       ? '<span class="muted-text">$ 0</span>'
-      : saldo > 0
-        ? `<span class="pos-text" style="font-weight:500">Nos debe $ ${fmt(saldo)}</span>`
-        : `<span class="neg-text" style="font-weight:500">Debemos $ ${fmt(Math.abs(saldo))}</span>`;
-    const btnSaldo = saldo !== 0
-      ? `<button class="btn btn-sm" onclick="openModalCobrarPagar('${e.id}')">${saldo > 0 ? 'Cobrar' : 'Pagar'}</button>`
+      : e.saldo > 0
+        ? `<span class="pos-text" style="font-weight:500">Nos debe $ ${fmt(e.saldo)}</span>`
+        : `<span class="neg-text" style="font-weight:500">Debemos $ ${fmt(Math.abs(e.saldo))}</span>`;
+    const btnSaldo = e.saldo !== 0
+      ? `<button class="btn btn-sm" onclick="openModalCobrarPagar('${e.id}')">${e.saldo > 0 ? 'Cobrar' : 'Pagar'}</button>`
       : '';
     return `<tr>
       <td style="font-weight:500">${e.nombre}</td>
@@ -1060,7 +1014,6 @@ function renderEmpresas() {
       <td class="muted-text">${e.condicion_iva || '—'}</td>
       <td class="muted-text">${e.email || '—'}</td>
       <td class="muted-text">${e.telefono || '—'}</td>
-      <td class="muted-text" style="font-size:12px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.observaciones || ''}">${e.observaciones || '—'}</td>
       <td class="r">${saldoLabel}</td>
       <td style="text-align:right;white-space:nowrap">
         ${btnSaldo}
@@ -1096,87 +1049,152 @@ function renderCuentas() {
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────────────────
 function renderER() {
   const meses = [...new Set(movimientos.map(m => m.fecha ? m.fecha.substring(0, 7) : '').filter(Boolean))].sort();
-  if (!meses.length) { document.getElementById('er-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`; return; }
+  if (!meses.length) {
+    document.getElementById('er-table').innerHTML = `<tr><td><div class="empty-state">Sin datos.</div></td></tr>`;
+    document.getElementById('er-table-otros').innerHTML = '';
+    return;
+  }
   const nom = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const getTotal = (tipo, mes) => movimientos
+
+  const getTotalCuenta = (cuenta, mes) => movimientos
+    .filter(m => m.tipo === 'Ingreso' && (m.clasificacion || '').includes(cuenta) && (m.fecha || '').startsWith(mes))
+    .reduce((s, m) => s + (m.monto_neto || m.monto || 0), 0);
+
+  const getTotalTipo = (tipo, mes) => movimientos
     .filter(m => m.tipo === tipo && (m.fecha || '').startsWith(mes))
     .reduce((s, m) => s + (m.monto_neto || m.monto || 0), 0);
 
-  let html = '<thead><tr><th>Rubro</th>';
+  // Cuentas de ingreso y egreso del plan de cuentas
+  const ctasIngreso = cuentas.filter(c => c.tipo === 'Ingreso').sort((a, b) => a.codigo.localeCompare(b.codigo));
+  const ctasEgreso = cuentas.filter(c => c.tipo === 'Egreso').sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+  const getNetoXCuentaXMes = (cuentaNombre, tipoMov, mes) => movimientos
+    .filter(m => m.tipo === tipoMov && (m.clasificacion || '').includes(cuentaNombre) && (m.fecha || '').startsWith(mes))
+    .reduce((s, m) => s + (m.monto_neto || m.monto || 0), 0);
+
+  let html = '<thead><tr><th>Cuenta</th>';
   meses.forEach(m => { const [y, mo] = m.split('-'); html += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html += '<th class="r">Total</th></tr></thead><tbody>';
 
-  // ── Ingresos
+  // ── INGRESOS
   html += `<tr style="background:var(--bg)"><td colspan="${meses.length + 2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Ingresos</td></tr>`;
-  let totalIngresos = {};
-  meses.forEach(m => { totalIngresos[m] = getTotal('Ingreso', m); });
-  html += `<tr><td style="padding-left:24px">Ingresos operativos</td>`;
-  let rowTotalIng = 0;
-  meses.forEach(m => { rowTotalIng += totalIngresos[m]; html += `<td class="r pos-text">$ ${fmt(totalIngresos[m])}</td>`; });
-  html += `<td class="r pos-text" style="font-weight:500">$ ${fmt(rowTotalIng)}</td></tr>`;
 
-  // ── Subtotal ingresos
+  let totalIngMeses = {};
+  meses.forEach(m => { totalIngMeses[m] = 0; });
+
+  ctasIngreso.forEach(c => {
+    let rowTotal = 0;
+    html += `<tr><td style="padding-left:20px;color:var(--text-muted)">${c.codigo} — ${c.nombre}</td>`;
+    meses.forEach(mes => {
+      const v = getNetoXCuentaXMes(c.nombre, 'Ingreso', mes);
+      totalIngMeses[mes] += v;
+      rowTotal += v;
+      html += `<td class="r ${v > 0 ? 'pos-text' : 'muted-text'}">$ ${fmt(v)}</td>`;
+    });
+    html += `<td class="r ${rowTotal > 0 ? 'pos-text' : 'muted-text'}" style="font-weight:500">$ ${fmt(rowTotal)}</td></tr>`;
+  });
+
+  // Ingresos sin cuenta clasificada
+  let rowSinCuenta = 0;
+  const valoresSinCtaIng = meses.map(mes => {
+    const totalClasif = ctasIngreso.reduce((s, c) => s + getNetoXCuentaXMes(c.nombre, 'Ingreso', mes), 0);
+    const totalMes = getTotalTipo('Ingreso', mes);
+    const diff = totalMes - totalClasif;
+    totalIngMeses[mes] += diff;
+    rowSinCuenta += diff;
+    return diff;
+  });
+  if (rowSinCuenta > 0) {
+    html += `<tr><td style="padding-left:20px;color:var(--text-faint);font-style:italic">Sin clasificar</td>`;
+    valoresSinCtaIng.forEach(v => { html += `<td class="r muted-text">$ ${fmt(v)}</td>`; });
+    html += `<td class="r muted-text">$ ${fmt(rowSinCuenta)}</td></tr>`;
+  }
+
   html += `<tr class="er-subtotal"><td>Total ingresos</td>`;
   let grandIng = 0;
-  meses.forEach(m => { grandIng += totalIngresos[m]; html += `<td class="r">$ ${fmt(totalIngresos[m])}</td>`; });
-  html += `<td class="r">$ ${fmt(grandIng)}</td></tr>`;
+  meses.forEach(m => { grandIng += totalIngMeses[m]; html += `<td class="r pos-text">$ ${fmt(totalIngMeses[m])}</td>`; });
+  html += `<td class="r pos-text" style="font-weight:500">$ ${fmt(grandIng)}</td></tr>`;
 
-  // ── Egresos
+  // ── EGRESOS
   html += `<tr style="background:var(--bg)"><td colspan="${meses.length + 2}" style="font-size:11px;font-weight:500;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px 4px">Egresos</td></tr>`;
-  let totalEgresos = {};
-  meses.forEach(m => { totalEgresos[m] = getTotal('Egreso', m); });
-  html += `<tr><td style="padding-left:24px">Egresos operativos</td>`;
-  let rowTotalEg = 0;
-  meses.forEach(m => { rowTotalEg += totalEgresos[m]; html += `<td class="r neg-text">$ ${fmt(totalEgresos[m])}</td>`; });
-  html += `<td class="r neg-text" style="font-weight:500">$ ${fmt(rowTotalEg)}</td></tr>`;
 
-  // ── Subtotal egresos
+  let totalEgMeses = {};
+  meses.forEach(m => { totalEgMeses[m] = 0; });
+
+  ctasEgreso.forEach(c => {
+    let rowTotal = 0;
+    html += `<tr><td style="padding-left:20px;color:var(--text-muted)">${c.codigo} — ${c.nombre}</td>`;
+    meses.forEach(mes => {
+      const v = getNetoXCuentaXMes(c.nombre, 'Egreso', mes);
+      totalEgMeses[mes] += v;
+      rowTotal += v;
+      html += `<td class="r ${v > 0 ? 'neg-text' : 'muted-text'}">$ ${fmt(v)}</td>`;
+    });
+    html += `<td class="r ${rowTotal > 0 ? 'neg-text' : 'muted-text'}" style="font-weight:500">$ ${fmt(rowTotal)}</td></tr>`;
+  });
+
+  // Egresos sin cuenta clasificada
+  let rowSinCtaEg = 0;
+  const valoresSinCtaEg = meses.map(mes => {
+    const totalClasif = ctasEgreso.reduce((s, c) => s + getNetoXCuentaXMes(c.nombre, 'Egreso', mes), 0);
+    const totalMes = getTotalTipo('Egreso', mes);
+    const diff = totalMes - totalClasif;
+    totalEgMeses[mes] += diff;
+    rowSinCtaEg += diff;
+    return diff;
+  });
+  if (rowSinCtaEg > 0) {
+    html += `<tr><td style="padding-left:20px;color:var(--text-faint);font-style:italic">Sin clasificar</td>`;
+    valoresSinCtaEg.forEach(v => { html += `<td class="r muted-text">$ ${fmt(v)}</td>`; });
+    html += `<td class="r muted-text">$ ${fmt(rowSinCtaEg)}</td></tr>`;
+  }
+
   html += `<tr class="er-subtotal"><td>Total egresos</td>`;
   let grandEg = 0;
-  meses.forEach(m => { grandEg += totalEgresos[m]; html += `<td class="r">$ ${fmt(totalEgresos[m])}</td>`; });
-  html += `<td class="r">$ ${fmt(grandEg)}</td></tr>`;
+  meses.forEach(m => { grandEg += totalEgMeses[m]; html += `<td class="r neg-text">$ ${fmt(totalEgMeses[m])}</td>`; });
+  html += `<td class="r neg-text" style="font-weight:500">$ ${fmt(grandEg)}</td></tr>`;
 
-  // ── Resultado bruto
+  // ── RESULTADO BRUTO
   html += `<tr class="er-total"><td>Resultado bruto</td>`;
   let grandBruto = 0;
   meses.forEach(m => {
-    const v = totalIngresos[m] - totalEgresos[m]; grandBruto += v;
+    const v = totalIngMeses[m] - totalEgMeses[m]; grandBruto += v;
     html += `<td class="r ${v >= 0 ? 'pos-text' : 'neg-text'}">$ ${fmt(v)}</td>`;
   });
   html += `<td class="r ${grandBruto >= 0 ? 'pos-text' : 'neg-text'}">$ ${fmt(grandBruto)}</td></tr>`;
 
-  // ── Contribución marginal (resultado bruto / ingresos)
+  // ── CONTRIBUCIÓN MARGINAL
   html += `<tr><td style="color:var(--text-muted);font-size:12px">Contribución marginal</td>`;
   meses.forEach(m => {
-    const ing = totalIngresos[m]; const eg = totalEgresos[m];
-    const cm = ing > 0 ? ((ing - eg) / ing * 100) : 0;
+    const cm = totalIngMeses[m] > 0 ? ((totalIngMeses[m] - totalEgMeses[m]) / totalIngMeses[m] * 100) : 0;
     html += `<td class="r" style="color:var(--text-muted);font-size:12px">${cm.toFixed(1)}%</td>`;
   });
   const cmTotal = grandIng > 0 ? ((grandIng - grandEg) / grandIng * 100) : 0;
   html += `<td class="r" style="color:var(--text-muted);font-size:12px">${cmTotal.toFixed(1)}%</td></tr>`;
 
-  // ── Tabla separada: otros movimientos
-  html += `</tbody>`;
+  html += '</tbody>';
   document.getElementById('er-table').innerHTML = html;
 
-  // Segunda tabla
+  // ── OTROS MOVIMIENTOS
   const otros = [
-    { label: 'Tarjetas de crédito', tipo: 'Tarjeta de crédito', sign: -1 },
-    { label: 'Bancos / Transferencias', tipo: 'Banco', sign: 1 },
-    { label: 'Inversiones', tipo: 'Inversión', sign: 1 },
-    { label: 'Préstamos', tipo: 'Préstamo', sign: 1 },
+    { label: 'IVA Débito Fiscal', tipo: 'Ingreso', cuenta: 'IVA Débito Fiscal' },
+    { label: 'IVA Crédito Fiscal', tipo: 'Egreso', cuenta: 'IVA Crédito Fiscal' },
+    { label: 'Tarjetas de crédito', tipo: 'Tarjeta de crédito', cuenta: null },
+    { label: 'Bancos / Transferencias', tipo: 'Banco / Transferencia', cuenta: null },
+    { label: 'Inversiones', tipo: 'Inversión', cuenta: null },
+    { label: 'Préstamos', tipo: 'Préstamo', cuenta: null },
   ];
-  let html2 = '<thead><tr><th>Otros movimientos</th>';
+  let html2 = '<thead><tr><th>Otros</th>';
   meses.forEach(m => { const [y, mo] = m.split('-'); html2 += `<th class="r">${nom[parseInt(mo) - 1]} ${y}</th>`; });
   html2 += '<th class="r">Total</th></tr></thead><tbody>';
   otros.forEach(cat => {
-    html2 += `<tr><td>${cat.label}</td>`;
     let rowT = 0;
-    meses.forEach(m => {
-      const v = getTotal(cat.tipo, m) * cat.sign; rowT += v;
-      html2 += `<td class="r ${v < 0 ? 'neg-text' : v > 0 ? 'pos-text' : 'muted-text'}">$ ${fmt(Math.abs(v))}</td>`;
+    html2 += `<tr><td>${cat.label}</td>`;
+    meses.forEach(mes => {
+      const v = getTotalTipo(cat.tipo, mes); rowT += v;
+      html2 += `<td class="r muted-text">$ ${fmt(v)}</td>`;
     });
-    html2 += `<td class="r" style="font-weight:500">$ ${fmt(Math.abs(rowT))}</td></tr>`;
+    html2 += `<td class="r" style="font-weight:500">$ ${fmt(rowT)}</td></tr>`;
   });
   html2 += '</tbody>';
   document.getElementById('er-table-otros').innerHTML = html2;
@@ -2010,18 +2028,32 @@ async function generarAsientoComprobante({ userId, movId, fecha, detalle, tipo, 
   await sb.from('movimientos').update({ asiento_id: asiento.id }).eq('id', movId);
 
   // Cuenta corriente empresa
-  if (empresaObj && concepto) {
+
+  // Cuenta corriente empresa
+  if (empresaObj) {
     const ccMovs = cuentasCorrientes.filter(c => c.empresa_id === empresaObj.id);
     const saldoAnterior = ccMovs.reduce((s, c) => s + (c.debe || 0) - (c.haber || 0), 0);
-    const conceptosQueDebian = ['factura_emitida', 'nota_debito_emitida'];
-    const conceptosQueAcreditan = ['nota_credito_emitida', 'cobro_efectivo'];
-    const conceptosQueDebo = ['factura_recibida', 'nota_debito_recibida'];
-    const conceptosQueCancelo = ['nota_credito_recibida', 'pago_realizado'];
+
     let debe = 0, haber = 0;
-    if (conceptosQueDebian.includes(concepto)) debe = total;
-    else if (conceptosQueAcreditan.includes(concepto)) haber = total;
-    else if (conceptosQueDebo.includes(concepto)) haber = total;
-    else if (conceptosQueCancelo.includes(concepto)) debe = total;
+
+    if (tipo === 'Ingreso') {
+      // Factura emitida o nota débito → cliente nos debe más
+      if (!concepto || concepto === 'factura_emitida' || concepto === 'nota_debito_emitida') debe = total;
+      // Nota crédito → reduce lo que nos deben
+      else if (concepto === 'nota_credito_emitida') haber = total;
+    } else if (tipo === 'Egreso') {
+      // Factura recibida o nota débito → les debemos más
+      if (!concepto || concepto === 'factura_recibida' || concepto === 'nota_debito_recibida') haber = total;
+      // Nota crédito recibida → reduce lo que debemos
+      else if (concepto === 'nota_credito_recibida') debe = total;
+    } else if (tipo === 'Cobro') {
+      // Cobro → cancela deuda del cliente
+      haber = total;
+    } else if (tipo === 'Pago') {
+      // Pago → cancela nuestra deuda
+      debe = total;
+    }
+
     if (debe > 0 || haber > 0) {
       await sb.from('cuentas_corrientes').insert({
         user_id: userId, empresa_id: empresaObj.id, movimiento_id: movId,

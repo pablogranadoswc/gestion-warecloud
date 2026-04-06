@@ -184,6 +184,16 @@
 
         <!-- EMPRESAS -->
         <div id="page-empresas" class="page">
+          <div class="filters" style="margin-bottom:1rem">
+            <input type="text" id="empresas-search" placeholder="Buscar empresa..." style="flex:1"
+              oninput="renderEmpresas()">
+            <select id="empresas-orden" onchange="renderEmpresas()">
+              <option value="">Sin ordenar</option>
+              <option value="saldo-desc">Saldo: mayor a menor (nos deben)</option>
+              <option value="saldo-asc">Saldo: menor a mayor (les debemos)</option>
+              <option value="nombre">Nombre A-Z</option>
+            </select>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -193,7 +203,6 @@
                   <th>Condición IVA</th>
                   <th>Email</th>
                   <th>Teléfono</th>
-                  <th>Observaciones</th>
                   <th class="r">Saldo</th>
                   <th></th>
                 </tr>
@@ -305,12 +314,12 @@
         </div>
         <div class="form-group full"><label>Detalle *</label><input type="text" id="f-detalle"
             placeholder="Descripción del comprobante"></div>
-        <div class="form-group full"><label>Empresa / Razón social</label>
-          <div class="form-group empresa" style="position:relative;">
-            <input type="text" id="mov-empresa-input" placeholder="Buscar empresa..." autocomplete="off">
-            <div id="mov-empresa-dropdown" class="dropdown"></div>
-          </div>
-          <div id="f-empresa-dropdown"></div>
+        <div class="form-group full">
+          <label>Empresa / Razón social</label>
+          <input type="text" id="f-empresa-input" placeholder="Buscar empresa..." autocomplete="off"
+            oninput="filtrarEmpresasModal()">
+          <div id="f-empresa-lista" class="f-empresa-lista"></div>
+          <input type="hidden" id="f-empresa-id">
         </div>
         <div class="form-group"><label>Comprobante / Documento</label><input type="text" id="f-doc"
             placeholder="Factura A 0001-00000001"></div>

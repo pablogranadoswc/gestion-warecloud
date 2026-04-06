@@ -480,7 +480,7 @@ tr.er-total td {
 }
 
 .btn-del {
-  color: var(--red)!important;
+  color: var(--red) !important;
   border-color: #f0b0b0;
 }
 
@@ -712,4 +712,17 @@ tr.er-total td {
 
 .dropdown-item:hover {
   background: var(--accent-light);
+}
+
+.f-empresa-lista {
+  display: none;
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  z-index: 200;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 45%"
+
 }
