@@ -169,6 +169,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.add('active');
     document.getElementById('page-' + page).classList.add('active');
     document.getElementById('page-title').textContent = titles[page];
+    
     const btnNuevo = document.getElementById('btn-nuevo-movimiento');
     btnNuevo.addEventListener('click', () => {
       clearForm();
@@ -599,12 +600,6 @@ function clearForm() {
   const errEl = document.getElementById('form-error');
   if (errEl) errEl.textContent = '';
 }
-
-// ── Evento Nuevo Movimiento ──
-document.getElementById('btn-nuevo-movimiento').addEventListener('click', () => {
-  clearForm();
-  openModal(); // abre el modal
-});
 
 function fillForm(m) {
   document.getElementById('f-fecha').value = m.fecha || '';
