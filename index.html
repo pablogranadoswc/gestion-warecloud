@@ -15,20 +15,27 @@
 
 <body>
 
+  <!-- ══ LOGIN ══════════════════════════════════════════════ -->
   <div id="login-screen">
     <div class="login-box">
       <div class="login-logo">GF</div>
       <h1>Gestión Financiera</h1>
       <p class="login-sub">Accedé con tu cuenta</p>
-      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
-      <div class="form-group"><label>Contraseña</label><input type="password" id="login-password"
-          placeholder="••••••••"></div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="tu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
       <button class="btn btn-primary full" id="btn-login">Ingresar</button>
       <button class="btn btn-ghost full" id="btn-register">Crear cuenta</button>
       <p id="login-error" class="error-msg"></p>
     </div>
   </div>
 
+  <!-- ══ APP ════════════════════════════════════════════════ -->
   <div id="app" class="hidden">
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -97,9 +104,11 @@
           Inversiones
         </div>
       </nav>
-      </nav>
       <div class="sidebar-footer">
         <span id="user-email-display"></span>
+        <button onclick="reconstruirSistema()" class="btn">
+          Recalcular sistema
+        </button>
         <button class="btn-logout" id="btn-logout">Salir</button>
       </div>
     </aside>
@@ -111,7 +120,7 @@
       </div>
       <div class="content">
 
-        <!-- MOVIMIENTOS -->
+        <!-- ── MOVIMIENTOS ─────────────────────────────────── -->
         <div id="page-movimientos" class="page active">
           <div class="stats-grid" id="stats-grid"></div>
           <div class="filters">
@@ -150,8 +159,7 @@
           </div>
         </div>
 
-        <!-- ESTADO DE RESULTADOS -->
-
+        <!-- ── ESTADO DE RESULTADOS ───────────────────────── -->
         <div id="page-er" class="page">
           <div class="table-wrap" style="margin-bottom:1rem">
             <table id="er-table"></table>
@@ -161,7 +169,7 @@
           </div>
         </div>
 
-        <!-- FLUJO DE FONDOS -->
+        <!-- ── FLUJO DE FONDOS ────────────────────────────── -->
         <div id="page-flujo" class="page">
           <div class="filters" style="margin-bottom:1rem">
             <div class="form-group" style="flex-direction:row;align-items:center;gap:8px">
@@ -182,43 +190,27 @@
           </div>
         </div>
 
-        <!-- EMPRESAS -->
-
+        <!-- ── EMPRESAS ───────────────────────────────────── -->
         <div id="page-empresas" class="page">
-
-          <!-- 🔍 BARRA SUPERIOR -->
-          <div class="filters" style="margin-bottom:8px;display:flex;gap:8px;align-items:center;width: 100%;">
-
-            <!-- INPUT + AUTOCOMPLETE -->
+          <div class="filters" style="margin-bottom:8px;display:flex;gap:8px;align-items:center;width:100%">
             <div style="position:relative;width:50%">
-
               <input type="text" id="empresas-search" placeholder="Buscar empresa..." style="width:100%">
-
               <div id="empresas-autocomplete" class="dropdown"></div>
             </div>
-
-            <!-- FILTROS -->
-            <select id="empresas-tipo-saldo" class="empresas-tipo-saldo" onchange="renderEmpresas()">
+            <select id="empresas-tipo-saldo" onchange="renderEmpresas()">
               <option value="">Todos</option>
               <option value="a-cobrar">Nos deben</option>
               <option value="a-pagar">Debemos</option>
             </select>
-
-            <select id="empresas-orden" class="empresas-orden" onchange="renderEmpresas()">
+            <select id="empresas-orden" onchange="renderEmpresas()">
               <option value="">Sin ordenar</option>
               <option value="saldo-desc">Saldo: mayor a menor</option>
               <option value="saldo-asc">Saldo: menor a mayor</option>
               <option value="nombre">Nombre A-Z</option>
             </select>
-
             <button class="btn" onclick="recalcularSaldos()">↺ Recalcular saldos</button>
-
-
           </div>
-
-          <!-- 🔥 CHIPS (SEPARADOS) -->
           <div id="empresas-filtros-activos" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
-
           <div class="table-wrap">
             <table>
               <thead>
@@ -237,7 +229,7 @@
           </div>
         </div>
 
-        <!-- PLAN DE CUENTAS -->
+        <!-- ── PLAN DE CUENTAS ────────────────────────────── -->
         <div id="page-cuentas" class="page">
           <div class="table-wrap">
             <table>
@@ -253,7 +245,44 @@
             </table>
           </div>
         </div>
-        <!-- INVERSIONES -->
+
+        <!-- ── ASIENTOS ───────────────────────────────────── -->
+        <div id="page-asientos" class="page">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripción</th>
+                  <th>Empresa</th>
+                  <th class="r">Importe</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="asientos-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── SALDOS ─────────────────────────────────────── -->
+        <div id="page-saldos" class="page">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Cuenta</th>
+                  <th class="r">Debe acum.</th>
+                  <th class="r">Haber acum.</th>
+                  <th class="r">Saldo</th>
+                </tr>
+              </thead>
+              <tbody id="saldos-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── INVERSIONES ────────────────────────────────── -->
         <div id="page-inversiones" class="page">
           <div class="stats-grid" id="inv-stats"
             style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.25rem"></div>
@@ -274,44 +303,13 @@
             </table>
           </div>
         </div>
-        <!-- ASIENTOS -->
-        <div id="page-asientos" class="page">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Descripción</th>
-                  <th>Empresa</th>
-                  <th class="r">Importe</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="asientos-body"></tbody>
-            </table>
-          </div>
-        </div>
 
-        <!-- SALDOS -->
-        <div id="page-saldos" class="page">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Cuenta</th>
-                  <th class="r">Debe acum.</th>
-                  <th class="r">Haber acum.</th>
-                  <th class="r">Saldo</th>
-                </tr>
-              </thead>
-              <tbody id="saldos-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      </div><!-- /.content -->
     </main>
-  </div>
+  </div><!-- /#app -->
+
+
+  <!-- ══ MODALES (fuera de #app para evitar stacking context) ══ -->
 
   <!-- MODAL COMPROBANTE -->
   <div class="modal-overlay hidden" id="modal-overlay">
@@ -337,62 +335,75 @@
             <option value="">Sin impacto en cuenta corriente</option>
           </select>
         </div>
-        <div class="form-group full"><label>Detalle *</label><input type="text" id="f-detalle"
-            placeholder="Descripción del comprobante"></div>
+        <div class="form-group full">
+          <label>Detalle *</label>
+          <input type="text" id="f-detalle" placeholder="Descripción del comprobante">
+        </div>
         <div class="form-group full">
           <label>Empresa / Razón social</label>
           <input type="text" id="f-empresa-input" placeholder="Buscar empresa..." autocomplete="off">
-          <div id="f-empresa-lista" class="f-empresa-lista"></div>
+          <div style="position:relative">
+            <!-- <input type="text" id="f-empresa-input" placeholder="Buscar empresa..." autocomplete="off"> -->
+            <div id="f-empresa-lista" class="dropdown"></div>
+          </div>
           <input type="hidden" id="f-empresa-id">
         </div>
-        <div class="form-group"><label>Comprobante / Documento</label><input type="text" id="f-doc"
-            placeholder="Factura A 0001-00000001"></div>
-        <div class="form-group"><label>Observaciones</label><input type="text" id="f-obs"></div>
+        <div class="form-group">
+          <label>Comprobante / Documento</label>
+          <input type="text" id="f-doc" placeholder="Factura A 0001-00000001">
+        </div>
+        <div class="form-group">
+          <label>Observaciones</label>
+          <input type="text" id="f-obs">
+        </div>
       </div>
 
       <div style="padding:0 1.5rem 0.5rem">
 
-        <!-- SECCIÓN LÍNEAS (Ingreso / Egreso) -->
-    <div id="sec-lineas">
-      <div style="padding:0 1.5rem 0.5rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <label style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Líneas del comprobante</label>
-          <button class="btn btn-sm" id="comp-add-linea">+ Agregar línea</button>
+        <!-- Sección líneas (Ingreso / Egreso) -->
+        <div id="sec-lineas">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <label
+              style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Líneas
+              del comprobante</label>
+            <button class="btn btn-sm" id="comp-add-linea">+ Agregar línea</button>
+          </div>
+          <div
+            style="display:flex;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
+            <span style="flex:2">Cuenta</span>
+            <span style="flex:1.5;min-width:100px">Descripción</span>
+            <span style="flex:1;min-width:80px">Neto</span>
+            <span style="flex:0.6;min-width:60px">IVA %</span>
+            <span style="flex:1;min-width:80px">Total</span>
+            <span style="width:36px"></span>
+          </div>
+          <div id="comp-lineas" style="display:flex;flex-direction:column;gap:6px"></div>
+          <div
+            style="display:flex;justify-content:flex-end;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"
+            id="comp-total"></div>
+          <div style="padding-top:1rem">
+            <div class="form-group">
+              <label>Cancelar con cuenta (opcional)</label>
+              <select id="f-cancelacion">
+                <option value="">Queda pendiente (cta. a pagar/cobrar)</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
-          <span style="flex:2">Cuenta</span>
-          <span style="flex:1.5;min-width:100px">Descripción</span>
-          <span style="flex:1;min-width:80px">Neto</span>
-          <span style="flex:0.6;min-width:60px">IVA %</span>
-          <span style="flex:1;min-width:80px">Total</span>
-          <span style="width:36px"></span>
-        </div>
-        <div id="comp-lineas" style="display:flex;flex-direction:column;gap:6px"></div>
-        <div style="display:flex;justify-content:flex-end;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)" id="comp-total"></div>
-      </div>
-      <div style="padding:0 1.5rem 1rem">
-        <div class="form-group">
-          <label>Cancelar con cuenta (opcional)</label>
-          <select id="f-cancelacion">
-            <option value="">Queda pendiente (cta. a pagar/cobrar)</option>
-          </select>
-        </div>
-      </div>
-    </div>
 
-    <!-- SECCIÓN SIMPLE (Cobro / Pago) -->
-    <div id="sec-simple" style="display:none;padding:0 1.5rem 1rem">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Monto *</label>
-          <input type="number" id="f-monto-simple" placeholder="0.00" step="0.01">
+        <!-- Sección simple (Cobro / Pago) -->
+        <div id="sec-simple" style="display:none">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Monto *</label>
+              <input type="number" id="f-monto-simple" placeholder="0.00" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Cuenta *</label>
+              <select id="f-cuenta-simple"></select>
+            </div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Cuenta *</label>
-          <select id="f-cuenta-simple"></select>
-        </div>
-      </div>
-    </div>
 
         <div class="modal-footer">
           <button class="btn btn-ghost" id="btn-cancelar">Cancelar</button>
@@ -401,316 +412,310 @@
         <p id="form-error" class="error-msg"></p>
       </div>
     </div>
+  </div>
 
-    <!-- MODAL EMPRESA -->
-    <div class="modal-overlay hidden" id="modal-empresa">
-      <div class="modal" style="max-width:800px">
-        <div class="modal-header">
-          <h2 id="me-title">Nueva empresa</h2>
-          <button class="modal-close" id="me-close">✕</button>
-        </div>
-        <input type="hidden" id="me-id">
-
-        <!-- MODO EDICIÓN: formulario individual -->
-        <div id="me-form-single">
-          <div class="form-grid">
-            <div class="form-group full"><label>Nombre / Razón social *</label><input type="text" id="me-nombre"></div>
-            <div class="form-group"><label>CUIT</label><input type="text" id="me-cuit" placeholder="XX-XXXXXXXX-X">
-            </div>
-            <div class="form-group">
-              <label>Condición IVA</label>
-              <select id="me-iva">
-                <option value="">—</option>
-                <option>Responsable Inscripto</option>
-                <option>Monotributista</option>
-                <option>Exento</option>
-                <option>Consumidor Final</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Email</label><input type="email" id="me-email"></div>
-            <div class="form-group"><label>Teléfono</label><input type="text" id="me-tel"></div>
-            <div class="form-group full"><label>Dirección</label><input type="text" id="me-dir"></div>
-            <div class="form-group full"><label>Observaciones</label><textarea id="me-obs" rows="2"
-                style="resize:vertical"></textarea></div>
-          </div>
-        </div>
-
-        <!-- MODO CREACIÓN MÚLTIPLE: tabla de filas -->
-        <div id="me-form-multi" style="padding:0 1.5rem 1rem">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <label
-              style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Empresas
-              a agregar</label>
-            <div style="display:flex;gap:6px;align-items:center">
-              <label class="btn btn-sm" style="cursor:pointer"
-                title="Importar CSV con columnas: nombre, cuit, condicion_iva, email, telefono, observaciones">
-                ↑ Importar CSV
-                <input type="file" id="me-csv-input" accept=".csv" style="display:none">
-              </label>
-              <button class="btn btn-sm" id="me-add-fila">+ Agregar fila</button>
-            </div>
-          </div>
-          <div id="me-csv-hint"
-            style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:6px 10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
-            Columnas esperadas: <span style="font-family:var(--mono)">nombre, cuit, condicion_iva, email, telefono,
-              observaciones</span> — solo <span style="font-family:var(--mono)">nombre</span> es obligatorio.
-          </div>
-          <div
-            style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.5fr 1fr 1.5fr 28px;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
-            <span>Nombre *</span><span>CUIT</span><span>Cond.
-              IVA</span><span>Email</span><span>Teléfono</span><span>Observaciones</span><span></span>
-          </div>
-          <div id="me-filas" style="display:flex;flex-direction:column;gap:6px"></div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="me-cancelar">Cancelar</button>
-          <button class="btn btn-primary" id="me-guardar">Guardar</button>
-        </div>
-        <p id="me-error" class="error-msg"></p>
+  <!-- MODAL EMPRESA -->
+  <div class="modal-overlay hidden" id="modal-empresa">
+    <div class="modal" style="max-width:800px">
+      <div class="modal-header">
+        <h2 id="me-title">Nueva empresa</h2>
+        <button class="modal-close" id="me-close">✕</button>
       </div>
-    </div>
+      <input type="hidden" id="me-id">
 
-    <!-- MODAL CUENTA -->
-    <div class="modal-overlay hidden" id="modal-cuenta">
-      <div class="modal" style="max-width:420px">
-        <div class="modal-header">
-          <h2 id="mc-title">Nueva cuenta</h2><button class="modal-close" id="mc-close">✕</button>
-        </div>
-        <input type="hidden" id="mc-id">
+      <!-- Modo edición -->
+      <div id="me-form-single">
         <div class="form-grid">
-          <div class="form-group"><label>Código *</label><input type="text" id="mc-codigo" placeholder="Ej: 01.01">
-          </div>
+          <div class="form-group full"><label>Nombre / Razón social *</label><input type="text" id="me-nombre"></div>
+          <div class="form-group"><label>CUIT</label><input type="text" id="me-cuit" placeholder="XX-XXXXXXXX-X"></div>
           <div class="form-group">
-            <label>Tipo *</label>
-            <select id="mc-tipo">
-              <option>Activo</option>
-              <option>Pasivo</option>
-              <option>Patrimonio</option>
-              <option>Ingreso</option>
-              <option>Egreso</option>
-              <option>Impuesto</option>
+            <label>Condición IVA</label>
+            <select id="me-iva">
+              <option value="">—</option>
+              <option>Responsable Inscripto</option>
+              <option>Monotributista</option>
+              <option>Exento</option>
+              <option>Consumidor Final</option>
             </select>
           </div>
-          <div class="form-group full"><label>Nombre *</label><input type="text" id="mc-nombre"
-              placeholder="Ej: Caja ARS"></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="mc-cancelar">Cancelar</button>
-          <button class="btn btn-primary" id="mc-guardar">Guardar cuenta</button>
-        </div>
-        <p id="mc-error" class="error-msg"></p>
-      </div>
-    </div>
-    <!-- MODAL ASIENTO -->
-    <div class="modal-overlay hidden" id="modal-asiento">
-      <div class="modal" style="max-width:720px">
-        <div class="modal-header">
-          <h2 id="mas-title">Nuevo asiento</h2>
-          <button class="modal-close" id="mas-close">✕</button>
-        </div>
-        <div class="form-grid">
-          <div class="form-group"><label>Fecha *</label><input type="date" id="mas-fecha"></div>
-          <div class="form-group"><label>Empresa</label><select id="mas-empresa"></select></div>
-          <div class="form-group full"><label>Descripción *</label><input type="text" id="mas-desc"
-              placeholder="Ej: Cobro factura 001"></div>
-          <div class="form-group"><label>Documento</label><input type="text" id="mas-doc"
-              placeholder="Factura, recibo..."></div>
-          <div class="form-group"><label>Observaciones</label><input type="text" id="mas-obs"></div>
-        </div>
-        <div style="padding:0 1.5rem 1rem">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <label
-              style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Líneas
-              del asiento</label>
-            <button class="btn btn-sm" id="mas-add-linea">+ Agregar línea</button>
-          </div>
-          <div
-            style="display:flex;gap:8px;font-size:11px;color:var(--text-faint);padding:0 0 6px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
-            <span style="flex:2">Cuenta</span>
-            <span style="flex:1;min-width:90px">Debe</span>
-            <span style="flex:1;min-width:90px">Haber</span>
-            <span style="width:36px"></span>
-          </div>
-          <div id="mas-lineas" style="display:flex;flex-direction:column;gap:6px"></div>
-          <div
-            style="display:flex;justify-content:flex-end;gap:24px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px">
-            <span>Total debe: <strong id="mas-total-debe">$ 0</strong></span>
-            <span>Total haber: <strong id="mas-total-haber">$ 0</strong></span>
-            <span id="mas-balance" class="balance-err">✗ No cuadra</span>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="mas-cancelar">Cancelar</button>
-          <button class="btn btn-primary" id="mas-guardar">Guardar asiento</button>
-        </div>
-        <p id="mas-error" class="error-msg"></p>
-      </div>
-    </div>
-
-    <!-- MODAL DETALLE ASIENTO -->
-    <div class="modal-overlay hidden" id="modal-detalle">
-      <div class="modal" style="max-width:500px">
-        <div class="modal-header">
-          <h2>Detalle del asiento</h2>
-          <button class="modal-close" id="detalle-close">✕</button>
-        </div>
-        <div style="padding:1.25rem 1.5rem" id="detalle-content"></div>
-      </div>
-    </div>
-
-    <!-- MODAL NUEVA INVERSION -->
-    <div class="modal-overlay hidden" id="modal-inversion">
-      <div class="modal" style="max-width:580px">
-        <div class="modal-header">
-          <h2 id="mi-title">Nueva inversión</h2>
-          <button class="modal-close" id="mi-close">✕</button>
-        </div>
-        <div class="form-grid">
-          <div class="form-group full"><label>Nombre *</label><input type="text" id="mi-nombre"
-              placeholder="Ej: Plazo fijo Galicia abril"></div>
-          <div class="form-group">
-            <label>Tipo *</label>
-            <select id="mi-tipo">
-              <option value="FCI">FCI</option>
-              <option value="Plazo fijo ARS">Plazo fijo ARS</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Moneda</label>
-            <select id="mi-moneda">
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-          <div class="form-group"><label>Entidad (banco / fondo)</label><input type="text" id="mi-entidad"
-              placeholder="Ej: Galicia, Balanz"></div>
-          <div class="form-group"><label>TNA (%)</label><input type="number" id="mi-tna" placeholder="Ej: 97.5"
-              step="0.01"></div>
-          <div class="form-group"><label>Fecha inicio *</label><input type="date" id="mi-inicio"></div>
-          <div class="form-group"><label>Fecha vencimiento</label><input type="date" id="mi-venc"></div>
-          <div class="form-group"><label>Monto inicial *</label><input type="number" id="mi-monto" placeholder="0.00"
-              step="0.01"></div>
-          <div class="form-group"><label>Saldo actual (si diferente)</label><input type="number" id="mi-saldo"
-              placeholder="Dejar vacío = igual al monto inicial" step="0.01"></div>
-          <div class="form-group">
-            <label>Estado</label>
-            <select id="mi-estado">
-              <option value="Activa">Activa</option>
-              <option value="Vencida">Vencida</option>
-              <option value="Rescatada">Rescatada</option>
-            </select>
-          </div>
-          <div class="form-group full"><label>Observaciones</label><textarea id="mi-obs" rows="2"></textarea></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="mi-cancelar">Cancelar</button>
-          <button class="btn btn-primary" id="mi-guardar">Guardar inversión</button>
-        </div>
-        <p id="mi-error" class="error-msg"></p>
-      </div>
-    </div>
-
-    <!-- MODAL MOVIMIENTO INVERSION -->
-    <div class="modal-overlay hidden" id="modal-mov-inversion">
-      <div class="modal" style="max-width:420px">
-        <div class="modal-header">
-          <h2>Registrar movimiento</h2>
-          <button class="modal-close" id="mim-close">✕</button>
-        </div>
-        <input type="hidden" id="mim-inv-id">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Tipo *</label>
-            <select id="mim-tipo">
-              <option value="Suscripción">Suscripción</option>
-              <option value="Rescate">Rescate</option>
-              <option value="Actualización manual">Actualización manual de saldo</option>
-            </select>
-          </div>
-          <div class="form-group"><label>Fecha *</label><input type="date" id="mim-fecha"></div>
-          <div class="form-group full"><label>Monto *</label><input type="number" id="mim-monto" placeholder="0.00"
-              step="0.01"></div>
-          <div class="form-group full"><label>Observaciones</label><input type="text" id="mim-obs"></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="mim-cancelar">Cancelar</button>
-          <button class="btn btn-primary" id="mim-guardar">Guardar</button>
-        </div>
-        <p id="mim-error" class="error-msg"></p>
-      </div>
-    </div>
-
-
-
-    <!-- MODAL COBRAR / PAGAR -->
-    <div class="modal-overlay hidden" id="modal-cobrar-pagar">
-      <div class="modal" style="max-width:440px">
-        <div class="modal-header">
-          <h2 id="cp-title">Cobrar / Pagar</h2>
-          <button class="modal-close" id="cp-close">✕</button>
-        </div>
-        <input type="hidden" id="cp-empresa-id">
-        <div style="padding:0 1.5rem 1rem">
-          <p style="font-size:15px;font-weight:500;margin-bottom:4px" id="cp-empresa-nombre"></p>
-          <p style="font-size:13px;margin-bottom:1rem" id="cp-saldo-actual"></p>
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Tipo</label>
-            <select id="cp-tipo">
-              <option value="Cobro">Cobro</option>
-              <option value="Pago">Pago</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Fecha *</label>
-            <input type="date" id="cp-fecha">
-          </div>
-          <div class="form-group full">
-            <label>Cuenta destino *</label>
-            <select id="cp-cuenta"></select>
-          </div>
-          <div class="form-group full">
-            <label>Monto *</label>
-            <input type="number" id="cp-monto" step="0.01">
-          </div>
-          <div class="form-group full">
-            <label>Observaciones</label>
-            <input type="text" id="cp-obs">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="cp-cancelar">Cancelar</button>
-          <button class="btn btn-primary" id="cp-guardar">Confirmar</button>
-        </div>
-        <p id="cp-error" class="error-msg"></p>
-      </div>
-    </div>
-
-    <!-- MODAL duplicado -->
-    <div class="modal-overlay hidden" id="modal-confirm">
-      <div class="modal" style="max-width:400px">
-        <div class="modal-header">
-          <h2>Cuenta duplicada</h2>
-        </div>
-        <div style="padding:1.25rem 1.5rem">
-          <p id="mc-texto" style="font-size:14px;color:var(--text-muted);line-height:1.5">
-            Ya existe una cuenta con ese código.<br>
-            ¿Desea reemplazarla?
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-ghost" id="mc-cancelar-confirm">Cancelar</button>
-          <button class="btn btn-primary" id="mc-confirmar" style="background:var(--red)">Reemplazar</button>
+          <div class="form-group"><label>Email</label><input type="email" id="me-email"></div>
+          <div class="form-group"><label>Teléfono</label><input type="text" id="me-tel"></div>
+          <div class="form-group full"><label>Dirección</label><input type="text" id="me-dir"></div>
+          <div class="form-group full"><label>Observaciones</label><textarea id="me-obs" rows="2"
+              style="resize:vertical"></textarea></div>
         </div>
       </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/config.js"></script>
-    <script src="js/app.js"></script>
+      <!-- Modo creación múltiple -->
+      <div id="me-form-multi" style="padding:0 1.5rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label
+            style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Empresas
+            a agregar</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <label class="btn btn-sm" style="cursor:pointer" title="Importar CSV">
+              ↑ Importar CSV
+              <input type="file" id="me-csv-input" accept=".csv" style="display:none">
+            </label>
+            <button class="btn btn-sm" id="me-add-fila">+ Agregar fila</button>
+          </div>
+        </div>
+        <div id="me-csv-hint"
+          style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:8px;padding:6px 10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+          Columnas esperadas: <span style="font-family:var(--mono)">nombre, cuit, condicion_iva, email, telefono,
+            observaciones</span> — solo <span style="font-family:var(--mono)">nombre</span> es obligatorio.
+        </div>
+        <div
+          style="display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1.5fr 1fr 1.5fr 28px;gap:6px;font-size:10px;color:var(--text-faint);padding:0 0 4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
+          <span>Nombre *</span><span>CUIT</span><span>Cond.
+            IVA</span>
+        </div>
+        <div id="me-filas" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="me-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="me-guardar">Guardar</button>
+      </div>
+      <p id="me-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL CUENTA -->
+  <div class="modal-overlay hidden" id="modal-cuenta">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h2 id="mc-title">Nueva cuenta</h2>
+        <button class="modal-close" id="mc-close">✕</button>
+      </div>
+      <input type="hidden" id="mc-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Código *</label><input type="text" id="mc-codigo" placeholder="Ej: 01.01"></div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="mc-tipo">
+            <option>Activo</option>
+            <option>Pasivo</option>
+            <option>Patrimonio</option>
+            <option>Ingreso</option>
+            <option>Egreso</option>
+            <option>Impuesto</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Nombre *</label><input type="text" id="mc-nombre"
+            placeholder="Ej: Caja ARS"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="mc-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="mc-guardar">Guardar cuenta</button>
+      </div>
+      <p id="mc-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL ASIENTO -->
+  <div class="modal-overlay hidden" id="modal-asiento">
+    <div class="modal" style="max-width:720px">
+      <div class="modal-header">
+        <h2 id="mas-title">Nuevo asiento</h2>
+        <button class="modal-close" id="mas-close">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha *</label><input type="date" id="mas-fecha"></div>
+        <div class="form-group">
+          <label>Empresa</label>
+          <div style="position:relative">
+            <input type="text" id="mas-empresa-input" placeholder="Buscar empresa..." autocomplete="off"
+              style="width:100%">
+            <div id="empresa-dropdown" class="dropdown"></div>
+            <datalist id="empresas-list"></datalist>
+          </div>
+        </div>
+        <div class="form-group full"><label>Descripción *</label><input type="text" id="mas-desc"
+            placeholder="Ej: Cobro factura 001"></div>
+        <div class="form-group"><label>Documento</label><input type="text" id="mas-doc"
+            placeholder="Factura, recibo..."></div>
+        <div class="form-group"><label>Observaciones</label><input type="text" id="mas-obs"></div>
+      </div>
+      <div style="padding:0 1.5rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label
+            style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Líneas
+            del asiento</label>
+          <button class="btn btn-sm" id="mas-add-linea">+ Agregar línea</button>
+        </div>
+        <div
+          style="display:flex;gap:8px;font-size:11px;color:var(--text-faint);padding:0 0 6px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.05em">
+          <span style="flex:2">Cuenta</span>
+          <span style="flex:1;min-width:90px">Debe</span>
+          <span style="flex:1;min-width:90px">Haber</span>
+          <span style="width:36px"></span>
+        </div>
+        <div id="mas-lineas" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div
+          style="display:flex;justify-content:flex-end;gap:24px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px">
+          <span>Total debe: <strong id="mas-total-debe">$ 0</strong></span>
+          <span>Total haber: <strong id="mas-total-haber">$ 0</strong></span>
+          <span id="mas-balance" class="balance-err">✗ No cuadra</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="mas-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="mas-guardar">Guardar asiento</button>
+      </div>
+      <p id="mas-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE ASIENTO / INVERSIÓN -->
+  <div class="modal-overlay hidden" id="modal-detalle">
+    <div class="modal" style="max-width:500px">
+      <div class="modal-header">
+        <h2>Detalle</h2>
+        <button class="modal-close" id="detalle-close">✕</button>
+      </div>
+      <div style="padding:1.25rem 1.5rem" id="detalle-content"></div>
+    </div>
+  </div>
+
+  <!-- MODAL INVERSIÓN -->
+  <div class="modal-overlay hidden" id="modal-inversion">
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header">
+        <h2 id="mi-title">Nueva inversión</h2>
+        <button class="modal-close" id="mi-close">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group full"><label>Nombre *</label><input type="text" id="mi-nombre"
+            placeholder="Ej: Plazo fijo Galicia abril"></div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="mi-tipo">
+            <option value="FCI">FCI</option>
+            <option value="Plazo fijo ARS">Plazo fijo ARS</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Moneda</label>
+          <select id="mi-moneda">
+            <option value="ARS">ARS</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Entidad</label><input type="text" id="mi-entidad"
+            placeholder="Ej: Galicia, Balanz"></div>
+        <div class="form-group"><label>TNA (%)</label><input type="number" id="mi-tna" placeholder="Ej: 97.5"
+            step="0.01"></div>
+        <div class="form-group"><label>Fecha inicio *</label><input type="date" id="mi-inicio"></div>
+        <div class="form-group"><label>Fecha vencimiento</label><input type="date" id="mi-venc"></div>
+        <div class="form-group"><label>Monto inicial *</label><input type="number" id="mi-monto" placeholder="0.00"
+            step="0.01"></div>
+        <div class="form-group"><label>Saldo actual (si diferente)</label><input type="number" id="mi-saldo"
+            placeholder="Dejar vacío = igual al inicial" step="0.01"></div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="mi-estado">
+            <option value="Activa">Activa</option>
+            <option value="Vencida">Vencida</option>
+            <option value="Rescatada">Rescatada</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Observaciones</label><textarea id="mi-obs" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="mi-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="mi-guardar">Guardar inversión</button>
+      </div>
+      <p id="mi-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL MOVIMIENTO INVERSIÓN -->
+  <div class="modal-overlay hidden" id="modal-mov-inversion">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h2>Registrar movimiento</h2>
+        <button class="modal-close" id="mim-close">✕</button>
+      </div>
+      <input type="hidden" id="mim-inv-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="mim-tipo">
+            <option value="Suscripción">Suscripción</option>
+            <option value="Rescate">Rescate</option>
+            <option value="Actualización manual">Actualización manual de saldo</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Fecha *</label><input type="date" id="mim-fecha"></div>
+        <div class="form-group full"><label>Monto *</label><input type="number" id="mim-monto" placeholder="0.00"
+            step="0.01"></div>
+        <div class="form-group full"><label>Observaciones</label><input type="text" id="mim-obs"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="mim-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="mim-guardar">Guardar</button>
+      </div>
+      <p id="mim-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL COBRAR / PAGAR -->
+  <div class="modal-overlay hidden" id="modal-cobrar-pagar">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h2>Cobrar / Pagar</h2>
+        <button class="modal-close" id="cp-close">✕</button>
+      </div>
+      <input type="hidden" id="cp-empresa-id">
+      <div style="padding:0 1.5rem 1rem">
+        <p style="font-size:15px;font-weight:500;margin-bottom:4px" id="cp-empresa-nombre"></p>
+        <p style="font-size:13px;margin-bottom:1rem" id="cp-saldo-actual"></p>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="cp-tipo">
+            <option value="Cobro">Cobro</option>
+            <option value="Pago">Pago</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Fecha *</label><input type="date" id="cp-fecha"></div>
+        <div class="form-group full"><label>Cuenta destino *</label><select id="cp-cuenta"></select></div>
+        <div class="form-group full"><label>Monto *</label><input type="number" id="cp-monto" step="0.01"></div>
+        <div class="form-group full"><label>Observaciones</label><input type="text" id="cp-obs"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cp-cancelar">Cancelar</button>
+        <button class="btn btn-primary" id="cp-guardar">Confirmar</button>
+      </div>
+      <p id="cp-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMACIÓN DUPLICADO -->
+  <div class="modal-overlay hidden" id="modal-confirm">
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header">
+        <h2>Cuenta duplicada</h2>
+      </div>
+      <div style="padding:1.25rem 1.5rem">
+        <p id="mc-texto" style="font-size:14px;color:var(--text-muted);line-height:1.5">
+          Ya existe una cuenta con ese código.<br>¿Desea reemplazarla?
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="mc-cancelar-confirm">Cancelar</button>
+        <button class="btn btn-primary" id="mc-confirmar" style="background:var(--red)">Reemplazar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCRIPTS ════════════════════════════════════════════ -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
 </body>
 
 </html>
